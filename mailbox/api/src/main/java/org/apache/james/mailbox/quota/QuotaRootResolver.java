@@ -28,8 +28,6 @@ import org.apache.james.mailbox.model.QuotaRoot;
 
 public interface QuotaRootResolver {
 
-    QuotaRoot createQuotaRoot(String quotaRootString);
-
     /**
      * Return the quotaRoot associated with the given mailbox name.
      *
@@ -38,6 +36,8 @@ public interface QuotaRootResolver {
      * @throws MailboxException
      */
     QuotaRoot getQuotaRoot(MailboxPath mailboxPath) throws MailboxException;
+
+    QuotaRoot fromString(String serializedQuotaRoot) throws MailboxException;
 
     List<MailboxPath> retrieveAssociatedMailboxes(QuotaRoot quotaRoot, MailboxSession mailboxSession) throws MailboxException;
 }

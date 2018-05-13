@@ -17,7 +17,6 @@
  * under the License.                                           *
  ****************************************************************/
 
-
 package org.apache.james.core;
 
 import java.util.Locale;
@@ -76,18 +75,23 @@ public class MailAddress implements java.io.Serializable {
     private static final MailAddress NULL_SENDER = new MailAddress() {
 
         @Override
-        public String getDomain() {
-            return "";
+        public Domain getDomain() {
+            throw new IllegalStateException("NULL sender '<>' do not have domain part");
         }
 
         @Override
         public String getLocalPart() {
-            return "";
+            throw new IllegalStateException("NULL sender '<>' do not have local part");
         }
 
         @Override
         public String toString() {
             return "";
+        }
+
+        @Override
+        public String asString() {
+            return "<>";
         }
 
         @Override
@@ -103,7 +107,7 @@ public class MailAddress implements java.io.Serializable {
     }
 
     private String localPart = null;
-    private String domain = null;
+    private Domain domain = null;
 
     private MailAddress() {
 
@@ -200,7 +204,7 @@ public class MailAddress implements java.io.Serializable {
         }
 
         localPart = localPartSB.toString();
-        domain = domainSB.toString();
+        domain = Domain.of(domainSB.toString());
     }
 
     private int parseUnquotedLocalPartOrThrowException(StringBuffer localPartSB, String address, int pos)
@@ -237,6 +241,10 @@ public class MailAddress implements java.io.Serializable {
         this(new InternetAddress(localPart + "@" + domain));
     }
 
+    public MailAddress(String localPart, Domain domain) throws AddressException {
+        this(new InternetAddress(localPart + "@" + domain.name()));
+    }
+
     /**
      * Constructs a MailAddress from an InternetAddress, using only the
      * email address portion (an "addr-spec", not "name-addr", as
@@ -259,7 +267,7 @@ public class MailAddress implements java.io.Serializable {
      */
     @Deprecated
     public String getHost() {
-        return getDomain();
+        return domain.asString();
     }
 
     /**
@@ -270,11 +278,8 @@ public class MailAddress implements java.io.Serializable {
      *         have been stripped returning the raw IP address.
      * @since Mailet API 2.4
      */
-    public String getDomain() {
-        if (!(domain.startsWith("[") && domain.endsWith("]"))) {
-            return domain;
-        }
-        return domain.substring(1, domain.length() - 1);
+    public Domain getDomain() {
+        return domain;
     }
 
     /**
@@ -305,12 +310,12 @@ public class MailAddress implements java.io.Serializable {
     }
 
     public String asString() {
-        return localPart + "@" + domain;
+        return localPart + "@" + domain.asString();
     }
 
     @Override
     public String toString() {
-        return localPart + "@" + domain;
+        return localPart + "@" + domain.asString();
     }
     
     public String asPrettyString() {
@@ -351,7 +356,7 @@ public class MailAddress implements java.io.Serializable {
             return toString().equalsIgnoreCase(theString);
         } else if (obj instanceof MailAddress) {
             MailAddress addr = (MailAddress) obj;
-            return getLocalPart().equalsIgnoreCase(addr.getLocalPart()) && getDomain().equalsIgnoreCase(addr.getDomain());
+            return getLocalPart().equalsIgnoreCase(addr.getLocalPart()) && getDomain().equals(addr.getDomain());
         }
         return false;
     }

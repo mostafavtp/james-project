@@ -1,0 +1,260 @@
+/****************************************************************
+ * Licensed to the Apache Software Foundation (ASF) under one   *
+ * or more contributor license agreements.  See the NOTICE file *
+ * distributed with this work for additional information        *
+ * regarding copyright ownership.  The ASF licenses this file   *
+ * to you under the Apache License, Version 2.0 (the            *
+ * "License"); you may not use this file except in compliance   *
+ * with the License.  You may obtain a copy of the License at   *
+ *                                                              *
+ *   http://www.apache.org/licenses/LICENSE-2.0                 *
+ *                                                              *
+ * Unless required by applicable law or agreed to in writing,   *
+ * software distributed under the License is distributed on an  *
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY       *
+ * KIND, either express or implied.  See the License for the    *
+ * specific language governing permissions and limitations      *
+ * under the License.                                           *
+ ****************************************************************/
+
+package org.apache.james.mailbox.quota.mailing.subscribers;
+
+import static org.apache.james.mailbox.quota.model.HistoryEvolution.HighestThresholdRecentness.AlreadyReachedDuringGracePeriod;
+import static org.apache.james.mailbox.quota.model.HistoryEvolution.HighestThresholdRecentness.NotAlreadyReachedDuringGracePeriod;
+import static org.apache.james.mailbox.quota.model.QuotaThresholdFixture.TestConstants.DEFAULT_CONFIGURATION;
+import static org.apache.james.mailbox.quota.model.QuotaThresholdFixture.TestConstants.NOW;
+import static org.apache.james.mailbox.quota.model.QuotaThresholdFixture._80;
+import static org.assertj.core.api.Assertions.assertThat;
+
+import java.util.Optional;
+
+import org.apache.james.filesystem.api.FileSystem;
+import org.apache.james.mailbox.model.Quota;
+import org.apache.james.mailbox.quota.QuotaCount;
+import org.apache.james.mailbox.quota.QuotaSize;
+import org.apache.james.mailbox.quota.model.HistoryEvolution;
+import org.apache.james.mailbox.quota.model.QuotaThresholdChange;
+import org.apache.james.mailbox.quota.model.QuotaThresholdFixture.Quotas.Counts;
+import org.apache.james.mailbox.quota.model.QuotaThresholdFixture.Quotas.Sizes;
+import org.apache.james.server.core.JamesServerResourceLoader;
+import org.apache.james.server.core.filesystem.FileSystemImpl;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+
+import nl.jqno.equalsverifier.EqualsVerifier;
+
+class QuotaThresholdNoticeTest {
+
+    private FileSystem fileSystem;
+
+    @BeforeEach
+    public void setUp() {
+        fileSystem = new FileSystemImpl(new JamesServerResourceLoader("."));
+    }
+
+    @Test
+    void shouldMatchBeanContract() {
+        EqualsVerifier.forClass(QuotaThresholdNotice.class)
+            .allFieldsShouldBeUsed()
+            .verify();
+    }
+
+    @Test
+    void buildShouldReturnEmptyWhenNoThresholds() {
+        assertThat(QuotaThresholdNotice.builder()
+            .sizeQuota(Sizes._82_PERCENT)
+            .countQuota(Counts._82_PERCENT)
+            .withConfiguration(DEFAULT_CONFIGURATION)
+            .build())
+            .isEmpty();
+    }
+
+    @Test
+    void buildShouldReturnEmptyWhenNoChanges() {
+        assertThat(QuotaThresholdNotice.builder()
+            .sizeQuota(Sizes._82_PERCENT)
+            .countQuota(Counts._82_PERCENT)
+            .sizeThreshold(HistoryEvolution.noChanges())
+            .withConfiguration(DEFAULT_CONFIGURATION)
+            .build())
+            .isEmpty();
+    }
+
+    @Test
+    void buildShouldReturnEmptyWhenBelow() {
+        assertThat(QuotaThresholdNotice.builder()
+            .sizeQuota(Sizes._82_PERCENT)
+            .countQuota(Counts._82_PERCENT)
+            .sizeThreshold(HistoryEvolution.lowerThresholdReached(new QuotaThresholdChange(_80, NOW)))
+            .withConfiguration(DEFAULT_CONFIGURATION)
+            .build())
+            .isEmpty();
+    }
+
+    @Test
+    void buildShouldReturnEmptyWhenAboveButRecentChanges() {
+        assertThat(QuotaThresholdNotice.builder()
+            .withConfiguration(DEFAULT_CONFIGURATION)
+            .sizeQuota(Sizes._82_PERCENT)
+            .countQuota(Counts._82_PERCENT)
+            .sizeThreshold(HistoryEvolution.higherThresholdReached(new QuotaThresholdChange(_80, NOW), AlreadyReachedDuringGracePeriod))
+            .build())
+            .isEmpty();
+    }
+
+    @Test
+    void buildShouldReturnPresentWhenAbove() {
+        Quota<QuotaSize> sizeQuota = Sizes._82_PERCENT;
+        Quota<QuotaCount> countQuota = Counts._82_PERCENT;
+        QuotaThresholdChange sizeThresholdChange = new QuotaThresholdChange(_80, NOW);
+
+        assertThat(QuotaThresholdNotice.builder()
+            .withConfiguration(DEFAULT_CONFIGURATION)
+            .sizeQuota(sizeQuota)
+            .countQuota(countQuota)
+            .sizeThreshold(HistoryEvolution.higherThresholdReached(sizeThresholdChange, NotAlreadyReachedDuringGracePeriod))
+            .build())
+            .isNotEmpty()
+            .contains(new QuotaThresholdNotice(Optional.empty(), Optional.of(sizeThresholdChange.getQuotaThreshold()), sizeQuota, countQuota, DEFAULT_CONFIGURATION));
+    }
+
+    @Test
+    void buildShouldFilterOutNotInterestingFields() {
+        Quota<QuotaSize> sizeQuota = Sizes._82_PERCENT;
+        Quota<QuotaCount> countQuota = Counts._82_PERCENT;
+        QuotaThresholdChange sizeThresholdChange = new QuotaThresholdChange(_80, NOW);
+        QuotaThresholdChange countThresholdChange = new QuotaThresholdChange(_80, NOW);
+
+        assertThat(QuotaThresholdNotice.builder()
+            .withConfiguration(DEFAULT_CONFIGURATION)
+            .sizeQuota(sizeQuota)
+            .countQuota(countQuota)
+            .sizeThreshold(HistoryEvolution.higherThresholdReached(sizeThresholdChange, NotAlreadyReachedDuringGracePeriod))
+            .countThreshold(HistoryEvolution.lowerThresholdReached(countThresholdChange))
+            .build())
+            .isNotEmpty()
+            .contains(new QuotaThresholdNotice(Optional.empty(), Optional.of(sizeThresholdChange.getQuotaThreshold()), sizeQuota, countQuota, DEFAULT_CONFIGURATION));
+    }
+
+    @Test
+    void buildShouldKeepAllInterestingFields() {
+        Quota<QuotaSize> sizeQuota = Sizes._82_PERCENT;
+        Quota<QuotaCount> countQuota = Counts._82_PERCENT;
+        QuotaThresholdChange sizeThresholdChange = new QuotaThresholdChange(_80, NOW);
+        QuotaThresholdChange countThresholdChange = new QuotaThresholdChange(_80, NOW);
+
+        assertThat(QuotaThresholdNotice.builder()
+            .withConfiguration(DEFAULT_CONFIGURATION)
+            .sizeQuota(sizeQuota)
+            .countQuota(countQuota)
+            .sizeThreshold(HistoryEvolution.higherThresholdReached(sizeThresholdChange, NotAlreadyReachedDuringGracePeriod))
+            .countThreshold(HistoryEvolution.higherThresholdReached(countThresholdChange, NotAlreadyReachedDuringGracePeriod))
+            .build())
+            .isNotEmpty()
+            .contains(new QuotaThresholdNotice(Optional.of(countThresholdChange.getQuotaThreshold()), Optional.of(sizeThresholdChange.getQuotaThreshold()), sizeQuota, countQuota, DEFAULT_CONFIGURATION));
+    }
+
+    @Test
+    void generateReportShouldGenerateAHumanReadableMessage() throws Exception {
+        QuotaThresholdChange sizeThresholdChange = new QuotaThresholdChange(_80, NOW);
+        QuotaThresholdChange countThresholdChange = new QuotaThresholdChange(_80, NOW);
+
+        assertThat(QuotaThresholdNotice.builder()
+            .withConfiguration(DEFAULT_CONFIGURATION)
+            .sizeQuota(Sizes._82_PERCENT)
+            .countQuota(Counts._92_PERCENT)
+            .sizeThreshold(HistoryEvolution.higherThresholdReached(sizeThresholdChange, NotAlreadyReachedDuringGracePeriod))
+            .countThreshold(HistoryEvolution.higherThresholdReached(countThresholdChange, NotAlreadyReachedDuringGracePeriod))
+            .build()
+            .get()
+            .generateReport(fileSystem))
+            .isEqualTo("You receive this email because you recently exceeded a threshold related to the quotas of your email account.\n" +
+                "\n" +
+                "You currently occupy more than 80 % of the total size allocated to you.\n" +
+                "You currently occupy 82 bytes on a total of 100 bytes allocated to you.\n" +
+                "\n" +
+                "You currently occupy more than 80 % of the total message count allocated to you.\n" +
+                "You currently have 92 messages on a total of 100 allowed for you.\n" +
+                "\n" +
+                "You need to be aware that actions leading to exceeded quotas will be denied. This will result in a degraded service.\n" +
+                "To mitigate this issue you might reach your administrator in order to increase your configured quota. You might also delete some non important emails.");
+    }
+
+    @Test
+    void generateReportShouldOmitCountPartWhenNone() throws Exception {
+        QuotaThresholdChange sizeThresholdChange = new QuotaThresholdChange(_80, NOW);
+
+        assertThat(QuotaThresholdNotice.builder()
+            .withConfiguration(DEFAULT_CONFIGURATION)
+            .sizeQuota(Sizes._82_PERCENT)
+            .countQuota(Counts._72_PERCENT)
+            .sizeThreshold(HistoryEvolution.higherThresholdReached(sizeThresholdChange, NotAlreadyReachedDuringGracePeriod))
+            .build()
+            .get()
+            .generateReport(fileSystem))
+            .isEqualTo("You receive this email because you recently exceeded a threshold related to the quotas of your email account.\n" +
+                "\n" +
+                "You currently occupy more than 80 % of the total size allocated to you.\n" +
+                "You currently occupy 82 bytes on a total of 100 bytes allocated to you.\n" +
+                "\n" +
+                "You need to be aware that actions leading to exceeded quotas will be denied. This will result in a degraded service.\n" +
+                "To mitigate this issue you might reach your administrator in order to increase your configured quota. You might also delete some non important emails.");
+    }
+
+    @Test
+    void generateReportShouldOmitSizePartWhenNone() throws Exception {
+        QuotaThresholdChange countThresholdChange = new QuotaThresholdChange(_80, NOW);
+
+        assertThat(QuotaThresholdNotice.builder()
+            .withConfiguration(DEFAULT_CONFIGURATION)
+            .sizeQuota(Sizes._82_PERCENT)
+            .countQuota(Counts._92_PERCENT)
+            .countThreshold(HistoryEvolution.higherThresholdReached(countThresholdChange, NotAlreadyReachedDuringGracePeriod))
+            .build()
+            .get()
+            .generateReport(fileSystem))
+            .isEqualTo("You receive this email because you recently exceeded a threshold related to the quotas of your email account.\n" +
+                "\n" +
+                "You currently occupy more than 80 % of the total message count allocated to you.\n" +
+                "You currently have 92 messages on a total of 100 allowed for you.\n" +
+                "\n" +
+                "You need to be aware that actions leading to exceeded quotas will be denied. This will result in a degraded service.\n" +
+                "To mitigate this issue you might reach your administrator in order to increase your configured quota. You might also delete some non important emails.");
+    }
+
+    @Test
+    void generateReportShouldNotFailWhenUnlimitedQuotaExceedsAThreshold() throws Exception {
+        QuotaThresholdChange countThresholdChange = new QuotaThresholdChange(_80, NOW);
+
+        assertThat(QuotaThresholdNotice.builder()
+            .withConfiguration(DEFAULT_CONFIGURATION)
+            .sizeQuota(Sizes._82_PERCENT)
+            .countQuota(Counts._UNLIMITED)
+            .countThreshold(HistoryEvolution.higherThresholdReached(countThresholdChange, NotAlreadyReachedDuringGracePeriod))
+            .build()
+            .get()
+            .generateReport(fileSystem))
+            .isEqualTo("You receive this email because you recently exceeded a threshold related to the quotas of your email account.\n" +
+                "\n" +
+                "You currently occupy more than 80 % of the total message count allocated to you.\n" +
+                "You currently have 92 messages.\n" +
+                "\n" +
+                "You need to be aware that actions leading to exceeded quotas will be denied. This will result in a degraded service.\n" +
+                "To mitigate this issue you might reach your administrator in order to increase your configured quota. You might also delete some non important emails.");
+    }
+
+    @Test
+    void generateSubjectShouldRenderMustacheTemplate() throws Exception {
+        QuotaThresholdChange countThresholdChange = new QuotaThresholdChange(_80, NOW);
+
+        assertThat(QuotaThresholdNotice.builder()
+            .withConfiguration(DEFAULT_CONFIGURATION)
+            .sizeQuota(Sizes._82_PERCENT)
+            .countQuota(Counts._UNLIMITED)
+            .countThreshold(HistoryEvolution.higherThresholdReached(countThresholdChange, NotAlreadyReachedDuringGracePeriod))
+            .build()
+            .get()
+            .generateSubject(fileSystem))
+            .isEqualTo("Warning: Your email usage just exceeded a configured threshold");
+    }
+}

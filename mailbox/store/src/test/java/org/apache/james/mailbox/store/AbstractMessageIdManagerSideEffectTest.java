@@ -50,7 +50,9 @@ import org.apache.james.mailbox.model.MessageResult;
 import org.apache.james.mailbox.model.Quota;
 import org.apache.james.mailbox.model.QuotaRoot;
 import org.apache.james.mailbox.model.UpdatedFlags;
+import org.apache.james.mailbox.quota.QuotaCount;
 import org.apache.james.mailbox.quota.QuotaManager;
+import org.apache.james.mailbox.quota.QuotaSize;
 import org.apache.james.mailbox.store.event.MailboxEventDispatcher;
 import org.apache.james.mailbox.store.mail.model.Mailbox;
 import org.apache.james.mailbox.store.mail.model.MailboxMessage;
@@ -61,7 +63,10 @@ import org.junit.rules.ExpectedException;
 import com.google.common.collect.ImmutableList;
 
 public abstract class AbstractMessageIdManagerSideEffectTest {
-    private static final Quota OVER_QUOTA = Quota.quota(102, 100);
+    private static final Quota<QuotaCount> OVER_QUOTA = Quota.<QuotaCount>builder()
+        .used(QuotaCount.count(102))
+        .computedLimit(QuotaCount.count(100))
+        .build();
     private static final MessageUid messageUid1 = MessageUid.of(111);
 
     public static final Flags FLAGS = new Flags();
@@ -140,6 +145,7 @@ public abstract class AbstractMessageIdManagerSideEffectTest {
         messageIdManager.setInMailboxes(messageId, ImmutableList.of(mailbox1.getMailboxId(), mailbox2.getMailboxId()), session);
 
         verify(dispatcher).added(eq(session), eq(mailbox1), any(MailboxMessage.class));
+        verify(dispatcher).moved(eq(session), any(), any());
         verifyNoMoreInteractions(dispatcher);
     }
 
@@ -155,6 +161,7 @@ public abstract class AbstractMessageIdManagerSideEffectTest {
 
         verify(dispatcher).added(eq(session), eq(mailbox1), any(MailboxMessage.class));
         verify(dispatcher).added(eq(session), eq(mailbox3), any(MailboxMessage.class));
+        verify(dispatcher).moved(eq(session), any(), any());
         verifyNoMoreInteractions(dispatcher);
     }
 
@@ -162,9 +169,11 @@ public abstract class AbstractMessageIdManagerSideEffectTest {
     public void setInMailboxesShouldThrowExceptionWhenOverQuota() throws Exception {
         MessageId messageId = testingData.persist(mailbox1.getMailboxId(), messageUid1, FLAGS, session);
         reset(dispatcher);
-        when(quotaManager.getStorageQuota(any(QuotaRoot.class))).thenReturn(Quota.unlimited());
+        when(quotaManager.getStorageQuota(any(QuotaRoot.class))).thenReturn(
+            Quota.<QuotaSize>builder().used(QuotaSize.size(2)).computedLimit(QuotaSize.unlimited()).build());
         when(quotaManager.getMessageQuota(any(QuotaRoot.class))).thenReturn(OVER_QUOTA);
-        when(quotaManager.getStorageQuota(any(QuotaRoot.class))).thenReturn(Quota.unlimited());
+        when(quotaManager.getStorageQuota(any(QuotaRoot.class))).thenReturn(
+            Quota.<QuotaSize>builder().used(QuotaSize.size(2)).computedLimit(QuotaSize.unlimited()).build());
 
         expectedException.expect(OverQuotaException.class);
 
@@ -184,6 +193,7 @@ public abstract class AbstractMessageIdManagerSideEffectTest {
 
         verify(dispatcher).expunged(eq(session), any(SimpleMessageMetaData.class), eq(mailbox2));
         verify(dispatcher).added(eq(session), eq(mailbox3), any(MailboxMessage.class));
+        verify(dispatcher).moved(eq(session), any(), any());
         verifyNoMoreInteractions(dispatcher);
     }
 
@@ -306,8 +316,10 @@ public abstract class AbstractMessageIdManagerSideEffectTest {
     }
 
     private void givenUnlimitedQuota() throws MailboxException {
-        when(quotaManager.getMessageQuota(any(QuotaRoot.class))).thenReturn(Quota.unlimited());
-        when(quotaManager.getStorageQuota(any(QuotaRoot.class))).thenReturn(Quota.unlimited());
+        when(quotaManager.getMessageQuota(any(QuotaRoot.class))).thenReturn(
+            Quota.<QuotaCount>builder().used(QuotaCount.count(2)).computedLimit(QuotaCount.unlimited()).build());
+        when(quotaManager.getStorageQuota(any(QuotaRoot.class))).thenReturn(
+            Quota.<QuotaSize>builder().used(QuotaSize.size(2)).computedLimit(QuotaSize.unlimited()).build());
     }
 
     private SimpleMessageMetaData fromMessageResult(MessageId messageId, MessageResult messageResult) {

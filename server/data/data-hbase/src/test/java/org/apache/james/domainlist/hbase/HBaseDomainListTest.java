@@ -20,6 +20,7 @@ package org.apache.james.domainlist.hbase;
 
 import java.io.IOException;
 
+import org.apache.james.core.Domain;
 import org.apache.james.domainlist.api.DomainList;
 import org.apache.james.domainlist.api.DomainListException;
 import org.apache.james.domainlist.lib.AbstractDomainListTest;
@@ -46,6 +47,7 @@ public class HBaseDomainListTest extends AbstractDomainListTest {
         TablePool.getInstance(cluster.getConf());
     }
 
+    @Override
     @Before
     public void setUp() throws Exception {
         super.setUp();
@@ -54,14 +56,11 @@ public class HBaseDomainListTest extends AbstractDomainListTest {
     @After
     public void tearDown() throws Exception {
         DomainList domainList = createDomainList();
-        for (String domain: domainList.getDomains()) {
+        for (Domain domain: domainList.getDomains()) {
             domainList.removeDomain(domain);
         }
     }
 
-    /**
-     * @see org.apache.james.domainlist.lib.AbstractDomainListTest#createDomainList()
-     */
     @Override
     protected DomainList createDomainList() throws Exception {
         HBaseDomainList domainList = new HBaseDomainList(getDNSServer("localhost"));

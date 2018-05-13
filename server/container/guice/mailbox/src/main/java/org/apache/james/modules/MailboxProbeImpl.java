@@ -53,7 +53,6 @@ public class MailboxProbeImpl implements GuiceProbe, MailboxProbe {
     private final MailboxManager mailboxManager;
     private final MailboxMapperFactory mailboxMapperFactory;
     private final SubscriptionManager subscriptionManager;
-    public static final boolean RECENT = true;
 
     @Inject
     private MailboxProbeImpl(MailboxManager mailboxManager, MailboxMapperFactory mailboxMapperFactory,
@@ -152,7 +151,9 @@ public class MailboxProbeImpl implements GuiceProbe, MailboxProbe {
 
         MessageManager messageManager = mailboxManager.getMailbox(new MailboxPath(namespace, user, name), mailboxSession);
         InputStream emlFileAsStream = new FileInputStream(emlPath);
-        messageManager.appendMessage(emlFileAsStream, new Date(), mailboxSession, RECENT, new Flags());
+        messageManager.appendMessage(MessageManager.AppendCommand.builder()
+            .recent()
+            .build(emlFileAsStream), mailboxSession);
 
         mailboxManager.endProcessingRequest(mailboxSession);
         mailboxSession.close();
@@ -165,6 +166,14 @@ public class MailboxProbeImpl implements GuiceProbe, MailboxProbe {
         MailboxSession mailboxSession = mailboxManager.createSystemSession(username);
         MessageManager messageManager = mailboxManager.getMailbox(mailboxPath, mailboxSession);
         return messageManager.appendMessage(message, internalDate, mailboxSession, isRecent, flags);
+    }
+
+    public ComposedMessageId appendMessage(String username, MailboxPath mailboxPath, MessageManager.AppendCommand appendCommand)
+            throws MailboxException {
+
+        MailboxSession mailboxSession = mailboxManager.createSystemSession(username);
+        MessageManager messageManager = mailboxManager.getMailbox(mailboxPath, mailboxSession);
+        return messageManager.appendMessage(appendCommand, mailboxSession);
     }
 
     @Override

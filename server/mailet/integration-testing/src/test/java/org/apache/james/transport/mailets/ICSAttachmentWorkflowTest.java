@@ -43,13 +43,13 @@ import org.apache.james.mailets.configuration.ProcessorConfiguration;
 import org.apache.james.probe.DataProbe;
 import org.apache.james.transport.mailets.amqp.AmqpRule;
 import org.apache.james.transport.matchers.All;
+import org.apache.james.util.MimeMessageUtil;
 import org.apache.james.util.docker.Images;
 import org.apache.james.util.docker.SwarmGenericContainer;
 import org.apache.james.utils.DataProbeImpl;
 import org.apache.james.utils.IMAPMessageReader;
 import org.apache.james.utils.SMTPMessageSender;
 import org.apache.mailet.base.test.FakeMail;
-import org.apache.mailet.base.test.MimeMessageUtil;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
@@ -558,8 +558,7 @@ public class ICSAttachmentWorkflowTest {
             .sendMessage(FakeMail.builder()
                 .mimeMessage(messageWithoutICSAttached)
                 .sender(FROM)
-                .recipient(RECIPIENT))
-            .awaitSent(awaitAtMostOneMinute);
+                .recipient(RECIPIENT));
 
         imapMessageReader.connect(LOCALHOST_IP, IMAP_PORT)
             .login(RECIPIENT, PASSWORD)
@@ -575,8 +574,7 @@ public class ICSAttachmentWorkflowTest {
             .sendMessage(FakeMail.builder()
                 .mimeMessage(messageWithICSAttached)
                 .sender(FROM)
-                .recipient(RECIPIENT))
-            .awaitSent(awaitAtMostOneMinute);
+                .recipient(RECIPIENT));
 
         imapMessageReader.connect(LOCALHOST_IP, IMAP_PORT)
             .login(RECIPIENT, PASSWORD)
@@ -608,8 +606,7 @@ public class ICSAttachmentWorkflowTest {
             .sendMessage(FakeMail.builder()
                 .mimeMessage(messageWithoutICSAttached)
                 .sender(FROM)
-                .recipient(RECIPIENT))
-            .awaitSent(awaitAtMostOneMinute);
+                .recipient(RECIPIENT));
 
         imapMessageReader.connect(LOCALHOST_IP, IMAP_PORT)
             .login(RECIPIENT, PASSWORD)
@@ -630,8 +627,7 @@ public class ICSAttachmentWorkflowTest {
             .sendMessage(FakeMail.builder()
                 .mimeMessage(messageWithICSAttached)
                 .sender(FROM)
-                .recipient(RECIPIENT))
-            .awaitSent(awaitAtMostOneMinute);
+                .recipient(RECIPIENT));
 
         imapMessageReader.connect(LOCALHOST_IP, IMAP_PORT)
             .login(RECIPIENT, PASSWORD)
@@ -651,8 +647,7 @@ public class ICSAttachmentWorkflowTest {
             .sendMessage(FakeMail.builder()
                 .mimeMessage(messageWithICSBase64Attached)
                 .sender(FROM)
-                .recipient(RECIPIENT))
-            .awaitSent(awaitAtMostOneMinute);
+                .recipient(RECIPIENT));
 
         imapMessageReader.connect(LOCALHOST_IP, IMAP_PORT)
             .login(RECIPIENT, PASSWORD)
@@ -672,8 +667,7 @@ public class ICSAttachmentWorkflowTest {
             .sendMessage(FakeMail.builder()
                 .mimeMessage(messageWithICSBase64Attached)
                 .sender(FROM)
-                .recipient(RECIPIENT))
-            .awaitSent(awaitAtMostOneMinute);
+                .recipient(RECIPIENT));
 
         imapMessageReader.connect(LOCALHOST_IP, IMAP_PORT)
             .login(RECIPIENT, PASSWORD)
@@ -698,8 +692,7 @@ public class ICSAttachmentWorkflowTest {
             .sendMessage(FakeMail.builder()
                 .mimeMessage(yahooInvitationMessage)
                 .sender(FROM)
-                .recipient(RECIPIENT))
-            .awaitSent(awaitAtMostOneMinute);
+                .recipient(RECIPIENT));
 
         imapMessageReader.connect(LOCALHOST_IP, IMAP_PORT)
             .login(RECIPIENT, PASSWORD)
@@ -725,8 +718,7 @@ public class ICSAttachmentWorkflowTest {
             .sendMessage(FakeMail.builder()
                 .mimeMessage(messageWithThreeICSAttached)
                 .sender(FROM)
-                .recipient(RECIPIENT))
-            .awaitSent(awaitAtMostOneMinute);
+                .recipient(RECIPIENT));
 
         imapMessageReader.connect(LOCALHOST_IP, IMAP_PORT)
             .login(RECIPIENT, PASSWORD)
@@ -746,8 +738,7 @@ public class ICSAttachmentWorkflowTest {
             .sendMessage(FakeMail.builder()
                 .mimeMessage(messageWithThreeICSAttached)
                 .sender(FROM)
-                .recipient(RECIPIENT))
-            .awaitSent(awaitAtMostOneMinute);
+                .recipient(RECIPIENT));
 
         imapMessageReader.connect(LOCALHOST_IP, IMAP_PORT)
             .login(RECIPIENT, PASSWORD)
@@ -785,8 +776,7 @@ public class ICSAttachmentWorkflowTest {
             .sendMessage(FakeMail.builder()
                 .mimeMessage(calendarMessage)
                 .sender(FROM)
-                .recipient(RECIPIENT))
-            .awaitSent(awaitAtMostOneMinute);
+                .recipient(RECIPIENT));
 
         imapMessageReader.connect(LOCALHOST_IP, IMAP_PORT)
             .login(RECIPIENT, PASSWORD)

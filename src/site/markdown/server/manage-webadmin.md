@@ -227,123 +227,368 @@ Response codes:
  - 404: The user name does not exist
  - 500: Internal error
 
-## Administrating quotas
+## Administrating quotas by users
 
-A quota with a value of -1 means unlimited
-
-### Reading per quotaroot mail count limitation
+### Getting the quota for a user
 
 ```
-curl -XGET http://ip:port/quota/count
+curl -XGET http://ip:port/quota/users/usernameToBeUsed
 ```
 
-The answer looks like:
+Resource name usernameToBeUsed should be an existing user
+
+The answer is the details of the quota of that user.
 
 ```
-100000
+{
+  "global": {"count":252,"size":242},
+  "domain": {"count":152,"size":142},
+  "user": {"count":52,"size":42},
+  "computed": {"count":52,"size":42}
+}
 ```
 
-Response codes:
- - 200: Nothing special
- - 500: Internal error
+ - The `global` entry represent the quota limit allowed on this James server.
+ - The `domain` entry represent the quota limit allowed for the user of that domain.
+ - The `user` entry represent the quota limit allowed for this specific user.
+ - The `computed` entry represent the quota limit applied for this user, resolved from the upper values.
 
-### Updating per quotaroot mail count limitation
-
-```
-curl -XPUT http://ip:port/quota/count -d '1024000000'
-```
-
-Response codes:
-
- - 204: Value updated
- - 400: The body is not a positive integer
- - 500: Internal error
-
-### Removing per quotaroot mail count limitation
-
-It removes the limitation, and the quota becomes UNILIMITED.
-
-```
-curl -XDELETE http://ip:port/quota/count
-```
-
-Response codes:
-
- - 204: Value updated to UNLIMITED
- - 500: Internal error
-
-### Reading per quotaroot size limitation
-
-```
-curl -XGET http://ip:port/quota/size
-```
-
-The answer looks like:
-
-```
-100000
-```
-
-It represent the allowed Byte count of the mailboxes belonging to this quotaroot.
-
-Response codes:
-
- - 200: Nothing special
- - 500: Internal error
-
-### Updating per quotaroot size limitation
-
-```
-curl -XPUT http://ip:port/quota/size -d '1024000000'
-```
-
-Response codes:
-
- - 204: Value updated
- - 400: The body is not a positive integer
- - 500: Internal error
-
-### Removing per quotaroot size limitation
-
-It removes the limitation, and the quota becomes UNILIMITED.
-
-```
-curl -XDELETE http://ip:port/quota/size
-```
-
-Response codes:
-
- - 204: Value updated to UNLIMITED
- - 500: Internal error
-
-### Managing count and size at the same time
-
-```
-curl -XGET http://ip:port/quota/
-```
-
-Will return:
+Note that `quota` object can contain a fixed value, an empty value (null) or an unlimited value (-1):
 
 ```
 {"count":52,"size":42}
+
+{"count":null,"size":null}
+
+{"count":52,"size":-1}
 ```
 
 Response codes:
 
- - 200: Success
- - 500: Internal error
+ - 200: The user's quota was successfully retrieved
+ - 404: The user does not exist
+ - 500: Internal error while accessing the user's quota
 
-You can also write the value the same way:
+### Updating the quota for a user
 
 ```
-curl -XPUT http://ip:port/quota/ -d '{"count":52,"size":42}'
+curl -XPUT http://ip:port/quota/users/usernameToBeUsed
+```
+
+Resource name usernameToBeUsed should be an existing user
+
+The body can contain a fixed value, an empty value (null) or an unlimited value (-1):
+
+```
+{"count":52,"size":42}
+
+{"count":null,"size":null}
+
+{"count":52,"size":-1}
 ```
 
 Response codes:
 
- - 204: Success
- - 400: Invalid JSON, or numbers are less than -1.
- - 500: Internal error
+ - 204: The quota has been updated
+ - 400: The body is not a positive integer neither an unlimited value (-1).
+ - 404: The user does not exist
+ - 409: The requested restriction can’t be enforced right now.
+ - 500: Internal server error - Something went bad on the server side.
+
+### Getting the quota count for a user
+
+```
+curl -XGET http://ip:port/quota/users/usernameToBeUsed/count
+```
+
+Resource name usernameToBeUsed should be an existing user
+
+The answer looks like:
+
+```
+52
+```
+
+Response codes:
+
+ - 200: The user's quota was successfully retrieved
+ - 404: The user does not exist
+ - 500: Internal error while accessing the user's quota
+
+### Updating the quota count for a user
+
+```
+curl -XPUT http://ip:port/quota/users/usernameToBeUsed/count
+```
+
+Resource name usernameToBeUsed should be an existing user
+
+The body can contain a fixed value or an unlimited value (-1):
+
+```
+52
+```
+
+Response codes:
+
+ - 204: The quota has been updated
+ - 400: The body is not a positive integer neither an unlimited value (-1).
+ - 404: The user does not exist
+ - 409: The requested restriction can’t be enforced right now.
+ - 500: Internal server error - Something went bad on the server side.
+
+### Deleting the quota count for a user
+
+```
+curl -XDELETE http://ip:port/quota/users/usernameToBeUsed/count
+```
+
+Resource name usernameToBeUsed should be an existing user
+
+Response codes:
+
+ - 204: The quota has been updated to unlimited value.
+ - 400: The body is not a positive integer neither an unlimited value (-1).
+ - 404: The user does not exist
+ - 409: The requested restriction can’t be enforced right now.
+ - 500: Internal server error - Something went bad on the server side.
+
+### Getting the quota size for a user
+
+```
+curl -XGET http://ip:port/quota/users/usernameToBeUsed/size
+```
+
+Resource name usernameToBeUsed should be an existing user
+
+The answer looks like:
+
+```
+52
+```
+
+Response codes:
+
+ - 200: The user's quota was successfully retrieved
+ - 404: The user does not exist
+ - 500: Internal error while accessing the user's quota
+
+### Updating the quota size for a user
+
+```
+curl -XPUT http://ip:port/quota/users/usernameToBeUsed/size
+```
+
+Resource name usernameToBeUsed should be an existing user
+
+The body can contain a fixed value or an unlimited value (-1):
+
+```
+52
+```
+
+Response codes:
+
+ - 204: The quota has been updated
+ - 400: The body is not a positive integer neither an unlimited value (-1).
+ - 404: The user does not exist
+ - 409: The requested restriction can’t be enforced right now.
+ - 500: Internal server error - Something went bad on the server side.
+
+### Deleting the quota size for a user
+
+```
+curl -XDELETE http://ip:port/quota/users/usernameToBeUsed/size
+```
+
+Resource name usernameToBeUsed should be an existing user
+
+Response codes:
+
+ - 204: The quota has been updated to unlimited value.
+ - 400: The body is not a positive integer neither an unlimited value (-1).
+ - 404: The user does not exist
+ - 409: The requested restriction can’t be enforced right now.
+ - 500: Internal server error - Something went bad on the server side.
+
+## Administrating quotas by domains
+
+### Getting the quota for a domain
+
+```
+curl -XGET http://ip:port/quota/domains/domainToBeUsed
+```
+
+Resource name domainToBeUsed should be an existing domain. For example:
+
+```
+curl -XGET http://ip:port/quota/domains/james.org
+```
+
+The answer can contain a fixed value, an empty value (null) or an unlimited value (-1):
+
+```
+{"count":52,"size":42}
+
+{"count":null,"size":null}
+
+{"count":52,"size":-1}
+```
+
+Response codes:
+
+ - 200: The domain's quota was successfully retrieved
+ - 404: The domain does not exist
+ - 405: Domain Quota configuration not supported when virtual hosting is desactivated.
+ - 500: Internal error while accessing the domain's quota
+
+### Updating the quota for a domain
+
+```
+curl -XPUT http://ip:port/quota/domains/domainToBeUsed
+```
+
+Resource name domainToBeUsed should be an existing domain.
+
+The body can contain a fixed value, an empty value (null) or an unlimited value (-1):
+
+```
+{"count":52,"size":42}
+
+{"count":null,"size":null}
+
+{"count":52,"size":-1}
+```
+
+Response codes:
+
+ - 204: The quota has been updated
+ - 400: The body is not a positive integer neither an unlimited value (-1).
+ - 404: The domain does not exist
+ - 405: Domain Quota configuration not supported when virtual hosting is desactivated.
+ - 409: The requested restriction can’t be enforced right now.
+ - 500: Internal server error - Something went bad on the server side.
+
+### Getting the quota count for a domain
+
+```
+curl -XGET http://ip:port/quota/domains/domainToBeUsed/count
+```
+
+Resource name domainToBeUsed should be an existing domain.
+
+The answer looks like:
+
+```
+52
+```
+
+Response codes:
+
+ - 200: The domain's quota was successfully retrieved
+ - 404: The domain does not exist
+ - 405: Domain Quota configuration not supported when virtual hosting is desactivated.
+ - 500: Internal error while accessing the domain's quota
+
+### Updating the quota count for a domain
+
+```
+curl -XPUT http://ip:port/quota/domains/domainToBeUsed/count
+```
+
+Resource name domainToBeUsed should be an existing domain.
+
+The body can contain a fixed value or an unlimited value (-1):
+
+```
+52
+```
+
+Response codes:
+
+ - 204: The quota has been updated
+ - 400: The body is not a positive integer neither an unlimited value (-1).
+ - 404: The domain does not exist
+ - 405: Domain Quota configuration not supported when virtual hosting is desactivated.
+ - 409: The requested restriction can’t be enforced right now.
+ - 500: Internal server error - Something went bad on the server side.
+
+### Deleting the quota count for a domain
+
+```
+curl -XDELETE http://ip:port/quota/domains/domainToBeUsed/count
+```
+
+Resource name domainToBeUsed should be an existing domain.
+
+Response codes:
+
+ - 204: The quota has been updated to unlimited value.
+ - 400: The body is not a positive integer neither an unlimited value (-1).
+ - 404: The domain does not exist
+ - 405: Domain Quota configuration not supported when virtual hosting is desactivated.
+ - 409: The requested restriction can’t be enforced right now.
+ - 500: Internal server error - Something went bad on the server side.
+
+### Getting the quota size for a domain
+
+```
+curl -XGET http://ip:port/quota/domains/domainToBeUsed/size
+```
+
+Resource name domainToBeUsed should be an existing domain.
+
+The answer looks like:
+
+```
+52
+```
+
+Response codes:
+
+ - 200: The domain's quota was successfully retrieved
+ - 404: The domain does not exist
+ - 405: Domain Quota configuration not supported when virtual hosting is desactivated.
+ - 500: Internal error while accessing the domain's quota
+
+### Updating the quota size for a domain
+
+```
+curl -XPUT http://ip:port/quota/domains/domainToBeUsed/size
+```
+
+Resource name domainToBeUsed should be an existing domain.
+
+The body can contain a fixed value or an unlimited value (-1):
+
+```
+52
+```
+
+Response codes:
+
+ - 204: The quota has been updated
+ - 400: The body is not a positive integer neither an unlimited value (-1).
+ - 404: The domain does not exist
+ - 405: Domain Quota configuration not supported when virtual hosting is desactivated.
+ - 409: The requested restriction can’t be enforced right now.
+ - 500: Internal server error - Something went bad on the server side.
+
+### Deleting the quota size for a domain
+
+```
+curl -XDELETE http://ip:port/quota/domains/domainToBeUsed/size
+```
+
+Resource name domainToBeUsed should be an existing domain.
+
+Response codes:
+
+ - 204: The quota has been updated to unlimited value.
+ - 400: The body is not a positive integer neither an unlimited value (-1).
+ - 404: The domain does not exist
+ - 409: The requested restriction can’t be enforced right now.
+ - 500: Internal server error - Something went bad on the server side.
 
 ## Cassandra Schema upgrades
 
@@ -520,6 +765,8 @@ You can use **webadmin** to define address groups.
 
 When a specific email is sent to the group mail address, every group member will receive it.
 
+Note that the group mail address is virtual: it does not correspond to an existing user.
+
 This feature uses [Recipients rewrite table](/server/config-recipientrewritetable.html) and requires
 the [RecipientRewriteTable mailet](https://github.com/apache/james-project/blob/master/server/mailet/mailets/src/main/java/org/apache/james/transport/mailets/RecipientRewriteTable.java)
 to be configured.
@@ -590,6 +837,92 @@ Response codes:
 
  - 200: Success
  - 400: Group structure or member is not valid
+ - 500: Internal error
+
+## Creating address forwards
+
+You can use **webadmin** to define address forwards.
+
+When a specific email is sent to the base mail address, every forward destination addresses will receive it.
+
+Please note that the base address can be optionaly part of the forward destination. In that case, the base recipient
+also receive a copy of the mail. Otherwise he is ommitted.
+
+Forwards can be defined for existing users. It then defers from "groups".
+
+This feature uses [Recipients rewrite table](/server/config-recipientrewritetable.html) and requires
+the [RecipientRewriteTable mailet](https://github.com/apache/james-project/blob/master/server/mailet/mailets/src/main/java/org/apache/james/transport/mailets/RecipientRewriteTable.java)
+to be configured.
+
+Note that email addresses are restricted to ASCII character set. Mail addresses not matching this criteria will be rejected.
+
+### Listing Forwards
+
+```
+curl -XGET http://ip:port/address/forwards
+```
+
+Will return the users having forwards configured as a list of JSON Strings representing mail addresses. For instance:
+
+```
+["user1@domain.com", "user2@domain.com"]
+```
+
+Response codes:
+
+ - 200: Success
+ - 500: Internal error
+
+### Listing destinations in a forward
+
+```
+curl -XGET http://ip:port/address/forwards/user@domain.com
+```
+
+Will return the destination addresses of this forward as a list of JSON Strings representing mail addresses. For instance:
+
+```
+[
+  {"mailAddres":"destination1@domain.com"},
+  {"mailAddres":"destination2@domain.com"}
+]
+```
+
+Response codes:
+
+ - 200: Success
+ - 400: Forward structure is not valid
+ - 404: The given user don't have forwards or does not exist
+ - 500: Internal error
+
+### Adding a new destination to a forward
+
+```
+curl -XPUT http://ip:port/address/forwards/user@domain.com/targets/destination@domain.com
+```
+
+Will add destination@domain.com to user@domain.com, creating the forward if needed
+
+Response codes:
+
+ - 200: Success
+ - 400: Forward structure or member is not valid
+ - 403: Server does not own the requested domain
+ - 404: Requested forward address does not match an existing user
+ - 500: Internal error
+
+### Removing a destination of a forward
+
+```
+curl -XDELETE http://ip:port/address/forwards/user@domain.com/targets/destination@domain.com
+```
+
+Will remove destination@domain.com from user@domain.com, removing the forward if forward is empty after deletion
+
+Response codes:
+
+ - 200: Success
+ - 400: Forward structure or member is not valid
  - 500: Internal error
 
 ## Administrating mail repositories

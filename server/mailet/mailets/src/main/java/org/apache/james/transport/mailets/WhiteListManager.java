@@ -46,6 +46,7 @@ import javax.mail.internet.MimeMessage;
 import javax.mail.internet.MimeMultipart;
 import javax.sql.DataSource;
 
+import org.apache.james.core.Domain;
 import org.apache.james.core.MailAddress;
 import org.apache.james.transport.mailets.managesieve.ManageSieveMailet;
 import org.apache.james.user.api.UsersRepository;
@@ -179,9 +180,7 @@ public class WhiteListManager extends GenericMailet {
         return this.sqlParameters;
     }
 
-    /**
-     * Initializes the mailet.
-     */
+    @Override
     public void init() throws MessagingException {
         automaticInsert = Boolean.valueOf(getInitParameter("automaticInsert"));
         LOGGER.debug("automaticInsert: {}", automaticInsert);
@@ -241,9 +240,7 @@ public class WhiteListManager extends GenericMailet {
         deleteByPK = sqlQueries.getSqlString("deleteByPK", true);
     }
 
-    /**
-     * Services the mailet.
-     */
+    @Override
     public void service(Mail mail) throws MessagingException {
 
         // check if it's a local sender
@@ -285,11 +282,7 @@ public class WhiteListManager extends GenericMailet {
 
     }
 
-    /**
-     * Returns a string describing this mailet.
-     * 
-     * @return a string describing this mailet
-     */
+    @Override
     public String getMailetInfo() {
         return "White List Manager mailet";
     }
@@ -300,7 +293,7 @@ public class WhiteListManager extends GenericMailet {
      */
     private void checkAndInsert(MailAddress senderMailAddress, Collection<MailAddress> recipients) throws MessagingException {
         String senderUser = senderMailAddress.getLocalPart().toLowerCase(Locale.US);
-        String senderHost = senderMailAddress.getDomain().toLowerCase(Locale.US);
+        Domain senderHost = senderMailAddress.getDomain();
 
         senderUser = getPrimaryName(senderUser);
 
@@ -315,7 +308,7 @@ public class WhiteListManager extends GenericMailet {
                 ResultSet selectRS = null;
                 try {
                     String recipientUser = recipient.getLocalPart().toLowerCase(Locale.US);
-                    String recipientHost = recipient.getDomain().toLowerCase(Locale.US);
+                    Domain recipientHost = recipient.getDomain();
 
                     if (getMailetContext().isLocalServer(recipientHost)) {
                         // not a remote recipient, so skip
@@ -330,9 +323,9 @@ public class WhiteListManager extends GenericMailet {
                         selectStmt = conn.prepareStatement(selectByPK);
                     }
                     selectStmt.setString(1, senderUser);
-                    selectStmt.setString(2, senderHost);
+                    selectStmt.setString(2, senderHost.asString());
                     selectStmt.setString(3, recipientUser);
-                    selectStmt.setString(4, recipientHost);
+                    selectStmt.setString(4, recipientHost.asString());
                     selectRS = selectStmt.executeQuery();
                     if (selectRS.next()) {
                         // This address was already in the list
@@ -343,9 +336,9 @@ public class WhiteListManager extends GenericMailet {
                         insertStmt = conn.prepareStatement(insert);
                     }
                     insertStmt.setString(1, senderUser);
-                    insertStmt.setString(2, senderHost);
+                    insertStmt.setString(2, senderHost.asString());
                     insertStmt.setString(3, recipientUser);
-                    insertStmt.setString(4, recipientHost);
+                    insertStmt.setString(4, recipientHost.asString());
                     insertStmt.executeUpdate();
                     dbUpdated = true;
 
@@ -384,7 +377,7 @@ public class WhiteListManager extends GenericMailet {
     private void manageDisplayRequest(Mail mail) throws MessagingException {
         MailAddress senderMailAddress = mail.getSender();
         String senderUser = senderMailAddress.getLocalPart().toLowerCase(Locale.US);
-        String senderHost = senderMailAddress.getDomain().toLowerCase(Locale.US);
+        Domain senderHost = senderMailAddress.getDomain();
 
         senderUser = getPrimaryName(senderUser);
 
@@ -403,7 +396,7 @@ public class WhiteListManager extends GenericMailet {
             conn = datasource.getConnection();
             selectStmt = conn.prepareStatement(selectBySender);
             selectStmt.setString(1, senderUser);
-            selectStmt.setString(2, senderHost);
+            selectStmt.setString(2, senderHost.asString());
             selectRS = selectStmt.executeQuery();
             while (selectRS.next()) {
                 MailAddress mailAddress = new MailAddress(selectRS.getString(1), selectRS.getString(2));
@@ -432,7 +425,7 @@ public class WhiteListManager extends GenericMailet {
     private void manageInsertRequest(Mail mail) throws MessagingException {
         MailAddress senderMailAddress = mail.getSender();
         String senderUser = senderMailAddress.getLocalPart().toLowerCase(Locale.US);
-        String senderHost = senderMailAddress.getDomain().toLowerCase(Locale.US);
+        Domain senderHost = senderMailAddress.getDomain();
 
         senderUser = getPrimaryName(senderUser);
 
@@ -465,7 +458,7 @@ public class WhiteListManager extends GenericMailet {
                             continue;
                         }
                         String recipientUser = recipientMailAddress.getLocalPart().toLowerCase(Locale.US);
-                        String recipientHost = recipientMailAddress.getDomain().toLowerCase(Locale.US);
+                        Domain recipientHost = recipientMailAddress.getDomain();
 
                         if (getMailetContext().isLocalServer(recipientHost)) {
                             // not a remote recipient, so skip
@@ -480,9 +473,9 @@ public class WhiteListManager extends GenericMailet {
                             selectStmt = conn.prepareStatement(selectByPK);
                         }
                         selectStmt.setString(1, senderUser);
-                        selectStmt.setString(2, senderHost);
+                        selectStmt.setString(2, senderHost.asString());
                         selectStmt.setString(3, recipientUser);
-                        selectStmt.setString(4, recipientHost);
+                        selectStmt.setString(4, recipientHost.asString());
                         selectRS = selectStmt.executeQuery();
                         if (selectRS.next()) {
                             // This address was already in the list
@@ -494,9 +487,9 @@ public class WhiteListManager extends GenericMailet {
                             insertStmt = conn.prepareStatement(insert);
                         }
                         insertStmt.setString(1, senderUser);
-                        insertStmt.setString(2, senderHost);
+                        insertStmt.setString(2, senderHost.asString());
                         insertStmt.setString(3, recipientUser);
-                        insertStmt.setString(4, recipientHost);
+                        insertStmt.setString(4, recipientHost.asString());
                         insertStmt.executeUpdate();
                         dbUpdated = true;
                         out.println("Inserted: " + recipientMailAddress);
@@ -553,7 +546,7 @@ public class WhiteListManager extends GenericMailet {
     private void manageRemoveRequest(Mail mail) throws MessagingException {
         MailAddress senderMailAddress = mail.getSender();
         String senderUser = senderMailAddress.getLocalPart().toLowerCase(Locale.US);
-        String senderHost = senderMailAddress.getDomain().toLowerCase(Locale.US);
+        Domain senderHost = senderMailAddress.getDomain();
 
         senderUser = getPrimaryName(senderUser);
 
@@ -586,7 +579,7 @@ public class WhiteListManager extends GenericMailet {
                             continue;
                         }
                         String recipientUser = recipientMailAddress.getLocalPart().toLowerCase(Locale.US);
-                        String recipientHost = recipientMailAddress.getDomain().toLowerCase(Locale.US);
+                        Domain recipientHost = recipientMailAddress.getDomain();
 
                         if (getMailetContext().isLocalServer(recipientHost)) {
                             // not a remote recipient, so skip
@@ -601,9 +594,9 @@ public class WhiteListManager extends GenericMailet {
                             selectStmt = conn.prepareStatement(selectByPK);
                         }
                         selectStmt.setString(1, senderUser);
-                        selectStmt.setString(2, senderHost);
+                        selectStmt.setString(2, senderHost.asString());
                         selectStmt.setString(3, recipientUser);
-                        selectStmt.setString(4, recipientHost);
+                        selectStmt.setString(4, recipientHost.asString());
                         selectRS = selectStmt.executeQuery();
                         if (!selectRS.next()) {
                             // This address was not in the list
@@ -615,9 +608,9 @@ public class WhiteListManager extends GenericMailet {
                             deleteStmt = conn.prepareStatement(deleteByPK);
                         }
                         deleteStmt.setString(1, senderUser);
-                        deleteStmt.setString(2, senderHost);
+                        deleteStmt.setString(2, senderHost.asString());
                         deleteStmt.setString(3, recipientUser);
-                        deleteStmt.setString(4, recipientHost);
+                        deleteStmt.setString(4, recipientHost.asString());
                         deleteStmt.executeUpdate();
                         dbUpdated = true;
                         out.println("Removed: " + recipientMailAddress);

@@ -19,6 +19,13 @@
 
 package org.apache.james.webadmin.routes;
 
+import java.io.UnsupportedEncodingException;
+import java.net.URLDecoder;
+import java.nio.charset.StandardCharsets;
+import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
+
 import javax.inject.Inject;
 import javax.ws.rs.DELETE;
 import javax.ws.rs.GET;
@@ -26,19 +33,22 @@ import javax.ws.rs.PUT;
 import javax.ws.rs.Path;
 import javax.ws.rs.Produces;
 
+import org.apache.james.core.User;
+import org.apache.james.mailbox.quota.QuotaCount;
+import org.apache.james.mailbox.quota.QuotaSize;
 import org.apache.james.user.api.UsersRepository;
 import org.apache.james.user.api.UsersRepositoryException;
 import org.apache.james.webadmin.Routes;
 import org.apache.james.webadmin.dto.QuotaDTO;
+import org.apache.james.webadmin.dto.QuotaDetailsDTO;
 import org.apache.james.webadmin.service.UserQuotaService;
 import org.apache.james.webadmin.utils.ErrorResponder;
 import org.apache.james.webadmin.utils.ErrorResponder.ErrorType;
 import org.apache.james.webadmin.utils.JsonExtractException;
 import org.apache.james.webadmin.utils.JsonExtractor;
 import org.apache.james.webadmin.utils.JsonTransformer;
-import org.apache.james.webadmin.validation.QuotaValue;
-import org.apache.james.webadmin.validation.QuotaValue.QuotaCount;
-import org.apache.james.webadmin.validation.QuotaValue.QuotaSize;
+import org.apache.james.webadmin.utils.JsonTransformerModule;
+import org.apache.james.webadmin.validation.Quotas;
 import org.eclipse.jetty.http.HttpStatus;
 
 import io.swagger.annotations.Api;
@@ -67,11 +77,11 @@ public class UserQuotaRoutes implements Routes {
     private Service service;
 
     @Inject
-    public UserQuotaRoutes(UsersRepository usersRepository, UserQuotaService userQuotaService, JsonTransformer jsonTransformer) {
+    public UserQuotaRoutes(UsersRepository usersRepository, UserQuotaService userQuotaService, JsonTransformer jsonTransformer, Set<JsonTransformerModule> modules) {
         this.usersRepository = usersRepository;
         this.userQuotaService = userQuotaService;
         this.jsonTransformer = jsonTransformer;
-        this.jsonExtractor = new JsonExtractor<>(QuotaDTO.class);
+        this.jsonExtractor = new JsonExtractor<>(QuotaDTO.class, modules.stream().map(JsonTransformerModule::asJacksonModule).collect(Collectors.toList()));
     }
 
     @Override
@@ -98,12 +108,13 @@ public class UserQuotaRoutes implements Routes {
     @ApiResponses(value = {
             @ApiResponse(code = HttpStatus.NO_CONTENT_204, message = "OK. The value has been updated."),
             @ApiResponse(code = HttpStatus.BAD_REQUEST_400, message = "The body is not a positive integer or not unlimited value (-1)."),
+            @ApiResponse(code = HttpStatus.NOT_FOUND_404, message = "The user name does not exist."),
             @ApiResponse(code = HttpStatus.CONFLICT_409, message = "The requested restriction can't be enforced right now."),
             @ApiResponse(code = HttpStatus.INTERNAL_SERVER_ERROR_500, message = "Internal server error - Something went bad on the server side.")
     })
     public void defineUpdateQuota() {
         service.put(QUOTA_ENDPOINT, ((request, response) -> {
-            String user = checkUserExist(request);
+            User user = checkUserExist(request);
             QuotaDTO quotaDTO = parseQuotaDTO(request);
             userQuotaService.defineQuota(user, quotaDTO);
             response.status(HttpStatus.NO_CONTENT_204);
@@ -117,12 +128,13 @@ public class UserQuotaRoutes implements Routes {
         notes = "If there is no limitation for count and/or size, the returned value will be -1"
     )
     @ApiResponses(value = {
-            @ApiResponse(code = HttpStatus.OK_200, message = "OK", response = QuotaDTO.class),
+            @ApiResponse(code = HttpStatus.OK_200, message = "OK", response = QuotaDetailsDTO.class),
+            @ApiResponse(code = HttpStatus.NOT_FOUND_404, message = "The user name does not exist."),
             @ApiResponse(code = HttpStatus.INTERNAL_SERVER_ERROR_500, message = "Internal server error - Something went bad on the server side.")
     })
     public void defineGetQuota() {
         service.get(QUOTA_ENDPOINT, (request, response) -> {
-            String user = checkUserExist(request);
+            User user = checkUserExist(request);
             return userQuotaService.getQuota(user);
         }, jsonTransformer);
     }
@@ -132,11 +144,12 @@ public class UserQuotaRoutes implements Routes {
     @ApiOperation(value = "Removing per user mail size limitation by updating to unlimited value")
     @ApiResponses(value = {
             @ApiResponse(code = HttpStatus.NO_CONTENT_204, message = "The value is updated to unlimited value."),
+            @ApiResponse(code = HttpStatus.NOT_FOUND_404, message = "The user name does not exist."),
             @ApiResponse(code = HttpStatus.INTERNAL_SERVER_ERROR_500, message = "Internal server error - Something went bad on the server side.")
     })
     public void defineDeleteQuotaSize() {
         service.delete(SIZE_ENDPOINT, (request, response) -> {
-            String user = checkUserExist(request);
+            User user = checkUserExist(request);
             userQuotaService.deleteMaxSizeQuota(user);
             response.status(HttpStatus.NO_CONTENT_204);
             return response;
@@ -151,14 +164,15 @@ public class UserQuotaRoutes implements Routes {
     })
     @ApiResponses(value = {
             @ApiResponse(code = HttpStatus.NO_CONTENT_204, message = "OK. The value has been updated."),
-            @ApiResponse(code = HttpStatus.BAD_REQUEST_400, message = "The body is not a positive integer."),
+            @ApiResponse(code = HttpStatus.BAD_REQUEST_400, message = "The body is not a positive integer nor -1."),
+            @ApiResponse(code = HttpStatus.NOT_FOUND_404, message = "The user name does not exist."),
             @ApiResponse(code = HttpStatus.CONFLICT_409, message = "The requested restriction can't be enforced right now."),
             @ApiResponse(code = HttpStatus.INTERNAL_SERVER_ERROR_500, message = "Internal server error - Something went bad on the server side.")
     })
     public void defineUpdateQuotaSize() {
         service.put(SIZE_ENDPOINT, (request, response) -> {
-            String user = checkUserExist(request);
-            QuotaSize quotaSize = QuotaValue.quotaSize(request.body());
+            User user = checkUserExist(request);
+            QuotaSize quotaSize = Quotas.quotaSize(request.body());
             userQuotaService.defineMaxSizeQuota(user, quotaSize);
             response.status(HttpStatus.NO_CONTENT_204);
             return response;
@@ -170,12 +184,19 @@ public class UserQuotaRoutes implements Routes {
     @ApiOperation(value = "Reading per user mail size limitation")
     @ApiResponses(value = {
             @ApiResponse(code = HttpStatus.OK_200, message = "OK", response = Long.class),
+            @ApiResponse(code = HttpStatus.NO_CONTENT_204, message = "No value defined"),
+            @ApiResponse(code = HttpStatus.NOT_FOUND_404, message = "The user name does not exist."),
             @ApiResponse(code = HttpStatus.INTERNAL_SERVER_ERROR_500, message = "Internal server error - Something went bad on the server side.")
     })
     public void defineGetQuotaSize() {
         service.get(SIZE_ENDPOINT, (request, response) -> {
-            String user = checkUserExist(request);
-            return userQuotaService.getMaxSizeQuota(user);
+            User user = checkUserExist(request);
+            Optional<QuotaSize> maxSizeQuota = userQuotaService.getMaxSizeQuota(user);
+            if (maxSizeQuota.isPresent()) {
+                return maxSizeQuota;
+            }
+            response.status(HttpStatus.NO_CONTENT_204);
+            return null;
         }, jsonTransformer);
     }
 
@@ -184,11 +205,12 @@ public class UserQuotaRoutes implements Routes {
     @ApiOperation(value = "Removing per user mail count limitation by updating to unlimited value")
     @ApiResponses(value = {
             @ApiResponse(code = HttpStatus.NO_CONTENT_204, message = "The value is updated to unlimited value."),
+            @ApiResponse(code = HttpStatus.NOT_FOUND_404, message = "The user name does not exist."),
             @ApiResponse(code = HttpStatus.INTERNAL_SERVER_ERROR_500, message = "Internal server error - Something went bad on the server side.")
     })
     public void defineDeleteQuotaCount() {
         service.delete(COUNT_ENDPOINT, (request, response) -> {
-            String user = checkUserExist(request);
+            User user = checkUserExist(request);
             userQuotaService.deleteMaxCountQuota(user);
             response.status(HttpStatus.NO_CONTENT_204);
             return response;
@@ -203,14 +225,15 @@ public class UserQuotaRoutes implements Routes {
     })
     @ApiResponses(value = {
             @ApiResponse(code = HttpStatus.NO_CONTENT_204, message = "OK. The value has been updated."),
-            @ApiResponse(code = HttpStatus.BAD_REQUEST_400, message = "The body is not a positive integer."),
+            @ApiResponse(code = HttpStatus.BAD_REQUEST_400, message = "The body is not a positive integer nor -1."),
+            @ApiResponse(code = HttpStatus.NOT_FOUND_404, message = "The user name does not exist."),
             @ApiResponse(code = HttpStatus.CONFLICT_409, message = "The requested restriction can't be enforced right now."),
             @ApiResponse(code = HttpStatus.INTERNAL_SERVER_ERROR_500, message = "Internal server error - Something went bad on the server side.")
     })
     public void defineUpdateQuotaCount() {
         service.put(COUNT_ENDPOINT, (request, response) -> {
-            String user = checkUserExist(request);
-            QuotaCount quotaCount = QuotaValue.quotaCount(request.body());
+            User user = checkUserExist(request);
+            QuotaCount quotaCount = Quotas.quotaCount(request.body());
             userQuotaService.defineMaxCountQuota(user, quotaCount);
             response.status(HttpStatus.NO_CONTENT_204);
             return response;
@@ -222,17 +245,26 @@ public class UserQuotaRoutes implements Routes {
     @ApiOperation(value = "Reading per user mail count limitation")
     @ApiResponses(value = {
             @ApiResponse(code = HttpStatus.OK_200, message = "OK", response = Long.class),
+            @ApiResponse(code = HttpStatus.NO_CONTENT_204, message = "No value defined"),
+            @ApiResponse(code = HttpStatus.NOT_FOUND_404, message = "The user name does not exist."),
             @ApiResponse(code = HttpStatus.INTERNAL_SERVER_ERROR_500, message = "Internal server error - Something went bad on the server side.")
     })
     public void defineGetQuotaCount() {
         service.get(COUNT_ENDPOINT, (request, response) -> {
-            String user = checkUserExist(request);
-            return userQuotaService.getMaxCountQuota(user);
+            User user = checkUserExist(request);
+            Optional<QuotaCount> maxCountQuota = userQuotaService.getMaxCountQuota(user);
+            if (maxCountQuota.isPresent()) {
+                return maxCountQuota;
+            }
+            response.status(HttpStatus.NO_CONTENT_204);
+            return null;
         }, jsonTransformer);
     }
 
-    private String checkUserExist(Request request) throws UsersRepositoryException {
-        String user = request.params(USER);
+    private User checkUserExist(Request request) throws UsersRepositoryException, UnsupportedEncodingException {
+        String user = URLDecoder.decode(request.params(USER),
+            StandardCharsets.UTF_8.displayName());
+
         if (!usersRepository.contains(user)) {
             throw ErrorResponder.builder()
                 .statusCode(HttpStatus.NOT_FOUND_404)
@@ -240,7 +272,7 @@ public class UserQuotaRoutes implements Routes {
                 .message("User not found")
                 .haltError();
         }
-        return user;
+        return User.fromUsername(user);
     }
 
     private QuotaDTO parseQuotaDTO(Request request) {

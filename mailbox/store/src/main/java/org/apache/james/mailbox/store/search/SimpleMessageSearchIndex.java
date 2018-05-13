@@ -81,7 +81,9 @@ public class SimpleMessageSearchIndex implements MessageSearchIndex {
         if (messageCapabilities.contains(MessageCapabilities.Attachment)) {
             return EnumSet.of(SearchCapabilities.MultimailboxSearch,
                 SearchCapabilities.Text,
-                SearchCapabilities.Attachment);
+                SearchCapabilities.Attachment,
+                SearchCapabilities.PartialEmailMatch,
+                SearchCapabilities.AttachmentFileName);
         }
         return EnumSet.of(SearchCapabilities.MultimailboxSearch,
             SearchCapabilities.Text);

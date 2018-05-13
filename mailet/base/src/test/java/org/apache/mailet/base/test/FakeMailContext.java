@@ -20,7 +20,6 @@
 package org.apache.mailet.base.test;
 
 import java.io.Serializable;
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -28,19 +27,24 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.TimeUnit;
 
 import javax.mail.MessagingException;
 import javax.mail.internet.AddressException;
 import javax.mail.internet.MimeMessage;
 
+import org.apache.james.core.Domain;
 import org.apache.james.core.MailAddress;
+import org.apache.james.core.builder.MimeMessageWrapper;
 import org.apache.mailet.HostAddress;
 import org.apache.mailet.LookupException;
 import org.apache.mailet.Mail;
 import org.apache.mailet.MailetContext;
 import org.slf4j.Logger;
 
+import com.github.fge.lambdas.Throwing;
+import com.github.fge.lambdas.functions.ThrowingFunction;
 import com.google.common.base.MoreObjects;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
@@ -106,6 +110,14 @@ public class FakeMailContext implements MailetContext {
     }
 
     public static class SentMail {
+
+        private static MimeMessage tryCopyMimeMessage(MimeMessage msg) throws MessagingException {
+            ThrowingFunction<MimeMessage, MimeMessage> throwingFunction = MimeMessageWrapper::wrap;
+
+            return Optional.ofNullable(msg)
+                .map(Throwing.function(throwingFunction).sneakyThrow())
+                .orElse(null);
+        }
 
         public static class Builder {
             private MailAddress sender;
@@ -175,7 +187,7 @@ public class FakeMailContext implements MailetContext {
                 return this;
             }
 
-            public SentMail build() {
+            public SentMail build() throws MessagingException {
                 if (fromMailet.orElse(false)) {
                     this.attribute(Mail.SENT_BY_MAILET, "true");
                 }
@@ -192,10 +204,10 @@ public class FakeMailContext implements MailetContext {
         private final String state;
         private final Optional<Delay> delay;
 
-        private SentMail(MailAddress sender, Collection<MailAddress> recipients, MimeMessage msg, Map<String, Serializable> attributes, String state, Optional<Delay> delay) {
+        private SentMail(MailAddress sender, Collection<MailAddress> recipients, MimeMessage msg, Map<String, Serializable> attributes, String state, Optional<Delay> delay) throws MessagingException {
             this.sender = sender;
             this.recipients = ImmutableList.copyOf(recipients);
-            this.msg = msg;
+            this.msg = tryCopyMimeMessage(msg);
             this.subject = getSubject(msg);
             this.attributes = ImmutableMap.copyOf(attributes);
             this.state = state;
@@ -310,7 +322,7 @@ public class FakeMailContext implements MailetContext {
             this.bouncer = bouncer;
         }
 
-        public BouncedMail(SentMail.Builder sentMail, String message, Optional<MailAddress> bouncer) {
+        public BouncedMail(SentMail.Builder sentMail, String message, Optional<MailAddress> bouncer) throws MessagingException {
             this(sentMail.build(), message, bouncer);
         }
 
@@ -353,23 +365,25 @@ public class FakeMailContext implements MailetContext {
     }
 
     private final HashMap<String, Object> attributes;
-    private final List<SentMail> sentMails;
-    private final List<BouncedMail> bouncedMails;
+    private final Collection<SentMail> sentMails;
+    private final Collection<BouncedMail> bouncedMails;
     private final Optional<Logger> logger;
     private final MailAddress postmaster;
 
     private FakeMailContext(Optional<Logger> logger, MailAddress postmaster) {
         attributes = new HashMap<>();
-        sentMails = new ArrayList<>();
-        bouncedMails = new ArrayList<>();
+        sentMails = new ConcurrentLinkedQueue<>();
+        bouncedMails = new ConcurrentLinkedQueue<>();
         this.logger = logger;
         this.postmaster = postmaster;
     }
 
+    @Override
     public void bounce(Mail mail, String message) throws MessagingException {
         bouncedMails.add(new BouncedMail(fromMail(mail), message, Optional.empty()));
     }
 
+    @Override
     public void bounce(Mail mail, String message, MailAddress bouncer) throws MessagingException {
         bouncedMails.add(new BouncedMail(fromMail(mail), message, Optional.ofNullable(bouncer)));
     }
@@ -377,45 +391,55 @@ public class FakeMailContext implements MailetContext {
     /**
      * @deprecated use the generic dnsLookup method
      */
-    public Collection<String> getMailServers(String host) {
+    @Override
+    public Collection<String> getMailServers(Domain host) {
         return null;  // trivial implementation
     }
 
+    @Override
     public MailAddress getPostmaster() {
         return postmaster;
     }
 
+    @Override
     public Object getAttribute(String name) {
         return attributes.get(name);
     }
 
+    @Override
     public Iterator<String> getAttributeNames() {
         return attributes.keySet().iterator();
     }
 
+    @Override
     public int getMajorVersion() {
         return 0;  // trivial implementation
     }
 
+    @Override
     public int getMinorVersion() {
         return 0;  // trivial implementation
     }
 
+    @Override
     public String getServerInfo() {
         return "Mock Server";
     }
 
-    public boolean isLocalServer(String serverName) {
-        return serverName.equals("localhost");  // trivial implementation
+    @Override
+    public boolean isLocalServer(Domain domain) {
+        return domain.equals(Domain.LOCALHOST);
     }
 
     /**
      * @deprecated use {@link #isLocalEmail(MailAddress)} instead 
      */
+    @Override
     public boolean isLocalUser(String userAccount) {
         return false;  // trivial implementation
     }
 
+    @Override
     public boolean isLocalEmail(MailAddress mailAddress) {
         return false;  // trivial implementation
     }
@@ -423,6 +447,7 @@ public class FakeMailContext implements MailetContext {
     /**
      * @deprecated use {@link #log(LogLevel level, String message)}
      */
+    @Override
     public void log(String message) {
         System.out.println(message);
     }
@@ -430,15 +455,18 @@ public class FakeMailContext implements MailetContext {
     /**
      * @deprecated use {@link #log(LogLevel level, String message, Throwable t)}
      */
+    @Override
     public void log(String message, Throwable t) {
         System.out.println(message);
         t.printStackTrace(System.out);
     }
 
+    @Override
     public void removeAttribute(String name) {
         // trivial implementation
     }
 
+    @Override
     public void sendMail(MimeMessage mimemessage) throws MessagingException {
         sentMails.add(sentMailBuilder()
             .message(mimemessage)
@@ -446,6 +474,7 @@ public class FakeMailContext implements MailetContext {
             .build());
     }
 
+    @Override
     public void sendMail(MailAddress sender, Collection<MailAddress> recipients, MimeMessage msg) throws MessagingException {
         sentMails.add(sentMailBuilder()
             .recipients(recipients)
@@ -455,6 +484,7 @@ public class FakeMailContext implements MailetContext {
             .build());
     }
 
+    @Override
     public void sendMail(MailAddress sender, Collection<MailAddress> recipients, MimeMessage msg, String state) throws MessagingException {
         sentMails.add(sentMailBuilder()
             .recipients(recipients)
@@ -501,14 +531,17 @@ public class FakeMailContext implements MailetContext {
     /**
      * @deprecated use the generic dnsLookup method
      */
-    public Iterator<HostAddress> getSMTPHostAddresses(String domainName) {
+    @Override
+    public Iterator<HostAddress> getSMTPHostAddresses(Domain domainName) {
         return null;  // trivial implementation
     }
 
+    @Override
     public void setAttribute(String name, Object value) {
         throw new UnsupportedOperationException("MOCKed method");
     }
 
+    @Override
     public void log(LogLevel level, String message) {
         if (logger.isPresent()) {
             switch (level) {
@@ -529,6 +562,7 @@ public class FakeMailContext implements MailetContext {
         }
     }
 
+    @Override
     public void log(LogLevel level, String message, Throwable t) {
         if (logger.isPresent()) {
             switch (level) {
@@ -550,16 +584,21 @@ public class FakeMailContext implements MailetContext {
         }
     }
 
+    @Override
     public List<String> dnsLookup(String name, RecordType type) throws LookupException {
         return null;   // trivial implementation
     }
 
     public List<SentMail> getSentMails() {
-        return sentMails;
+        return ImmutableList.copyOf(sentMails);
+    }
+
+    public void resetSentMails() {
+        sentMails.clear();
     }
 
     public List<BouncedMail> getBouncedMails() {
-        return bouncedMails;
+        return ImmutableList.copyOf(bouncedMails);
     }
 
     @Override

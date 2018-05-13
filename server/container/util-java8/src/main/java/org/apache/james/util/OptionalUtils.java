@@ -18,7 +18,9 @@
  ****************************************************************/
 package org.apache.james.util;
 
+import java.util.Arrays;
 import java.util.Optional;
+import java.util.function.Supplier;
 import java.util.stream.Stream;
 
 public class OptionalUtils {
@@ -40,10 +42,22 @@ public class OptionalUtils {
             .orElse(Stream.of());
     }
 
-    public static <T> Optional<T> or(Optional<T> optional1, Optional<T> optional2) {
-        return optional1.map(Optional::of)
+    @SafeVarargs
+    public static <T> Optional<T> or(Optional<T>... optionals) {
+        return orStream(Arrays.stream(optionals));
+    }
+
+    @SafeVarargs
+    public static <T> Optional<T> orSuppliers(Supplier<Optional<T>>... suppliers) {
+        return orStream(Arrays.stream(suppliers)
+            .map(Supplier::get));
+    }
+
+    private static <T> Optional<T> orStream(Stream<Optional<T>> stream) {
+        return stream
             .filter(Optional::isPresent)
-            .orElse(optional2);
+            .findFirst()
+            .orElse(Optional.empty());
     }
 
     public static <T> boolean containsDifferent(Optional<T> requestValue, T storeValue) {

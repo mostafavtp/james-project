@@ -25,6 +25,8 @@ import static com.jayway.restassured.RestAssured.given;
 import static com.jayway.restassured.RestAssured.with;
 import static com.jayway.restassured.config.EncoderConfig.encoderConfig;
 import static com.jayway.restassured.config.RestAssuredConfig.newConfig;
+import static org.apache.james.jmap.HttpJmapAuthentication.authenticateJamesUser;
+import static org.apache.james.jmap.JmapURIBuilder.baseUri;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
@@ -35,17 +37,13 @@ import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.nullValue;
 
-import java.io.ByteArrayInputStream;
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
-import java.util.Date;
 
-import javax.mail.Flags;
-
-import org.apache.http.client.utils.URIBuilder;
 import org.apache.james.backends.cassandra.ContainerLifecycleConfiguration;
 import org.apache.james.backends.cassandra.init.CassandraTypesProvider;
-import org.apache.james.jmap.HttpJmapAuthentication;
 import org.apache.james.jmap.api.access.AccessToken;
+import org.apache.james.mailbox.MessageManager.AppendCommand;
 import org.apache.james.mailbox.cassandra.mail.task.MailboxMergingTask;
 import org.apache.james.mailbox.cassandra.mail.utils.MailboxBaseTupleUtil;
 import org.apache.james.mailbox.cassandra.modules.CassandraMailboxModule;
@@ -58,7 +56,7 @@ import org.apache.james.mailbox.model.MailboxId;
 import org.apache.james.mailbox.model.MailboxPath;
 import org.apache.james.mailbox.store.mail.model.Mailbox;
 import org.apache.james.mailbox.store.probe.ACLProbe;
-import org.apache.james.mailbox.store.probe.MailboxProbe;
+import org.apache.james.mime4j.dom.Message;
 import org.apache.james.modules.ACLProbeImpl;
 import org.apache.james.modules.MailboxProbeImpl;
 import org.apache.james.probe.DataProbe;
@@ -67,7 +65,6 @@ import org.apache.james.task.TaskManager;
 import org.apache.james.utils.DataProbeImpl;
 import org.apache.james.utils.JmapGuiceProbe;
 import org.apache.james.utils.WebAdminGuiceProbe;
-import org.apache.james.webadmin.RandomPortSupplier;
 import org.apache.james.webadmin.WebAdminConfiguration;
 import org.apache.james.webadmin.WebAdminUtils;
 import org.apache.james.webadmin.routes.CassandraMailboxMergingRoutes;
@@ -81,7 +78,6 @@ import org.junit.rules.TestRule;
 
 import com.datastax.driver.core.Cluster;
 import com.datastax.driver.core.Session;
-import com.google.common.base.Charsets;
 import com.jayway.restassured.RestAssured;
 import com.jayway.restassured.builder.RequestSpecBuilder;
 import com.jayway.restassured.http.ContentType;
@@ -111,7 +107,7 @@ public class FixingGhostMailboxTest {
     private String bob;
     private String cedric;
     private GuiceJamesServer jmapServer;
-    private MailboxProbe mailboxProbe;
+    private MailboxProbeImpl mailboxProbe;
     private ACLProbe aclProbe;
     private Session session;
     private CassandraTypesProvider cassandraTypesProvider;
@@ -127,10 +123,7 @@ public class FixingGhostMailboxTest {
     public void setup() throws Throwable {
         jmapServer = rule.jmapServer(cassandra.getModule(),
             binder -> binder.bind(WebAdminConfiguration.class)
-            .toInstance(WebAdminConfiguration.builder()
-                .port(new RandomPortSupplier())
-                .enabled()
-                .build()));
+            .toInstance(WebAdminConfiguration.TEST_CONFIGURATION));
         jmapServer.start();
         webAdminProbe = jmapServer.getProbe(WebAdminGuiceProbe.class);
         mailboxProbe = jmapServer.getProbe(MailboxProbeImpl.class);
@@ -139,7 +132,7 @@ public class FixingGhostMailboxTest {
         RestAssured.requestSpecification = new RequestSpecBuilder()
             .setContentType(ContentType.JSON)
             .setAccept(ContentType.JSON)
-            .setConfig(newConfig().encoderConfig(encoderConfig().defaultContentCharset(Charsets.UTF_8)))
+            .setConfig(newConfig().encoderConfig(encoderConfig().defaultContentCharset(StandardCharsets.UTF_8)))
             .setPort(jmapServer.getProbe(JmapGuiceProbe.class).getJmapPort())
             .build();
         RestAssured.enableLoggingOfRequestAndResponseIfValidationFails();
@@ -155,7 +148,7 @@ public class FixingGhostMailboxTest {
         dataProbe.addDomain(domain);
         dataProbe.addUser(alice, alicePassword);
         dataProbe.addUser(bob, "bobSecret");
-        accessToken = HttpJmapAuthentication.authenticateJamesUser(baseUri(), alice, alicePassword);
+        accessToken = authenticateJamesUser(baseUri(jmapServer), alice, alicePassword);
 
         session = Cluster.builder()
             .addContactPoint(cassandra.getIp())
@@ -168,14 +161,13 @@ public class FixingGhostMailboxTest {
         simulateGhostMailboxBug();
     }
 
-    private void simulateGhostMailboxBug() throws MailboxException {
+    private void simulateGhostMailboxBug() throws MailboxException, IOException {
         // State before ghost mailbox bug
         // Alice INBOX is delegated to Bob and contains one message
         aliceInboxPath = MailboxPath.forUser(alice, MailboxConstants.INBOX);
         aliceGhostInboxId = mailboxProbe.createMailbox(MailboxConstants.USER_NAMESPACE, alice, MailboxConstants.INBOX);
         aclProbe.addRights(aliceInboxPath, bob, MailboxACL.FULL_RIGHTS);
-        message1 = mailboxProbe.appendMessage(alice, aliceInboxPath,
-            generateMessageContent(), new Date(), !RECENT, new Flags());
+        message1 = mailboxProbe.appendMessage(alice, aliceInboxPath, AppendCommand.from(generateMessageContent()));
         rule.await();
 
         // Simulate ghost mailbox bug
@@ -193,22 +185,15 @@ public class FixingGhostMailboxTest {
             .statusCode(200);
 
         // Received a new message
-        message2 = mailboxProbe.appendMessage(alice, aliceInboxPath,
-            generateMessageContent(), new Date(), !RECENT, new Flags());
+        message2 = mailboxProbe.appendMessage(alice, aliceInboxPath, AppendCommand.from(generateMessageContent()));
         rule.await();
     }
 
-    private ByteArrayInputStream generateMessageContent() {
-        return new ByteArrayInputStream("Subject: toto\r\n\r\ncontent".getBytes(StandardCharsets.UTF_8));
-    }
-
-    private URIBuilder baseUri() {
-        return new URIBuilder()
-            .setScheme("http")
-            .setHost("localhost")
-            .setPort(jmapServer.getProbe(JmapGuiceProbe.class)
-                .getJmapPort())
-            .setCharset(Charsets.UTF_8);
+    private Message generateMessageContent() throws IOException {
+        return Message.Builder.of()
+            .setSubject("toto")
+            .setBody("content", StandardCharsets.UTF_8)
+            .build();
     }
 
     @After

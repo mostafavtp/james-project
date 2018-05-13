@@ -20,8 +20,13 @@
 package org.apache.james.jmap;
 
 import static com.jayway.awaitility.Duration.ONE_MINUTE;
+import static org.apache.james.jmap.TestingConstants.DOMAIN;
+import static org.apache.james.jmap.TestingConstants.LOCALHOST_IP;
+import static org.apache.james.jmap.TestingConstants.SMTP_PORT;
+import static org.apache.james.jmap.TestingConstants.calmlyAwait;
 import static org.hamcrest.Matchers.equalTo;
 
+import java.io.IOException;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.commons.net.smtp.SMTPClient;
@@ -29,6 +34,7 @@ import org.apache.james.GuiceJamesServer;
 import org.apache.james.dnsservice.api.InMemoryDNSService;
 import org.apache.james.jmap.api.vacation.AccountId;
 import org.apache.james.jmap.api.vacation.VacationPatch;
+import org.apache.james.mailbox.DefaultMailboxes;
 import org.apache.james.mailbox.model.MailboxConstants;
 import org.apache.james.mailbox.store.probe.MailboxProbe;
 import org.apache.james.modules.MailboxProbeImpl;
@@ -41,32 +47,23 @@ import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 
-import com.jayway.awaitility.Awaitility;
-import com.jayway.awaitility.Duration;
-import com.jayway.awaitility.core.ConditionFactory;
-
 public abstract class VacationRelayIntegrationTest {
 
-    private static final String DOMAIN = "mydomain.tld";
     private static final String USER = "benwa";
     private static final String USER_WITH_DOMAIN = USER + '@' + DOMAIN;
     private static final String PASSWORD = "secret";
     private static final String REASON = "Message explaining my wonderful vacations";
 
-    private static final String LOCALHOST_IP = "127.0.0.1";
-    private static final int SMTP_PORT = 1025;
 
     @Rule
     public FakeSmtp fakeSmtp = new FakeSmtp();
 
-
-    private ConditionFactory calmlyAwait;
     private GuiceJamesServer guiceJamesServer;
     private JmapGuiceProbe jmapGuiceProbe;
 
     protected abstract void await();
 
-    protected abstract GuiceJamesServer getJmapServer();
+    protected abstract GuiceJamesServer getJmapServer() throws IOException;
 
     protected abstract InMemoryDNSService getInMemoryDns();
 
@@ -87,13 +84,6 @@ public abstract class VacationRelayIntegrationTest {
         await();
 
         jmapGuiceProbe = guiceJamesServer.getProbe(JmapGuiceProbe.class);
-
-        Duration slowPacedPollInterval = Duration.FIVE_HUNDRED_MILLISECONDS;
-        calmlyAwait = Awaitility
-            .with()
-            .pollInterval(slowPacedPollInterval)
-            .and()
-            .pollDelay(slowPacedPollInterval).await();
 
         fakeSmtp.awaitStarted(calmlyAwait.atMost(ONE_MINUTE));
     }

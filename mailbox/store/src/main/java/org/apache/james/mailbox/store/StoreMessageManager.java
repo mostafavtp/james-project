@@ -55,6 +55,7 @@ import org.apache.james.mailbox.model.MessageAttachment;
 import org.apache.james.mailbox.model.MessageId;
 import org.apache.james.mailbox.model.MessageId.Factory;
 import org.apache.james.mailbox.model.MessageMetaData;
+import org.apache.james.mailbox.model.MessageMoves;
 import org.apache.james.mailbox.model.MessageRange;
 import org.apache.james.mailbox.model.MessageResult.FetchGroup;
 import org.apache.james.mailbox.model.MessageResultIterator;
@@ -101,14 +102,6 @@ import com.google.common.collect.ImmutableMap;
  * 
  */
 public class StoreMessageManager implements org.apache.james.mailbox.MessageManager {
-
-    private static final MimeConfig MIME_ENTITY_CONFIG = MimeConfig.custom()
-        .setMaxContentLen(-1)
-        .setMaxHeaderCount(-1)
-        .setMaxHeaderLen(-1)
-        .setMaxHeaderCount(-1)
-        .setMaxLineLen(-1)
-        .build();
 
     private static final MailboxCounters ZERO_MAILBOX_COUNTERS = MailboxCounters.builder()
         .count(0)
@@ -267,6 +260,7 @@ public class StoreMessageManager implements org.apache.james.mailbox.MessageMana
      * 
      * @return true
      */
+    @Override
     public boolean isModSeqPermanent(MailboxSession session) {
         return true;
     }
@@ -280,6 +274,16 @@ public class StoreMessageManager implements org.apache.james.mailbox.MessageMana
 
         dispatcher.expunged(mailboxSession, uids, getMailboxEntity());
         return uids.keySet().iterator();
+    }
+
+    @Override
+    public ComposedMessageId appendMessage(AppendCommand appendCommand, MailboxSession session) throws MailboxException {
+        return appendMessage(
+            appendCommand.getMsgIn(),
+            appendCommand.getInternalDate(),
+            session,
+            appendCommand.isRecent(),
+            appendCommand.getFlags());
     }
 
     @Override
@@ -308,9 +312,8 @@ public class StoreMessageManager implements org.apache.james.mailbox.MessageMana
             // Disable line length... This should be handled by the smtp server
             // component and not the parser itself
             // https://issues.apache.org/jira/browse/IMAP-122
-            MimeConfig config = MIME_ENTITY_CONFIG;
 
-            final MimeTokenStream parser = new MimeTokenStream(config, new DefaultBodyDescriptorBuilder());
+            final MimeTokenStream parser = new MimeTokenStream(MimeConfig.PERMISSIVE, new DefaultBodyDescriptorBuilder());
 
             parser.setRecursionMode(RecursionMode.M_NO_RECURSE);
             parser.parse(bIn);
@@ -461,11 +464,7 @@ public class StoreMessageManager implements org.apache.james.mailbox.MessageMana
         return new SimpleMailboxMessage(messageIdFactory.generate(), internalDate, size, bodyStartOctet, content, flags, propertyBuilder, getMailboxEntity().getMailboxId(), attachments);
     }
 
-    /**
-     * This mailbox is writable
-     *
-     * @throws MailboxException
-     */
+    @Override
     public boolean isWriteable(MailboxSession session) throws MailboxException {
         return storeRightManager.isReadWrite(session, mailbox, getSharedPermanentFlags(session));
     }
@@ -558,11 +557,7 @@ public class StoreMessageManager implements org.apache.james.mailbox.MessageMana
 
     }
 
-    /**
-     * @see org.apache.james.mailbox.MessageManager#setFlags(javax.mail.Flags,
-     *      boolean, boolean, org.apache.james.mailbox.model.MessageRange,
-     *      org.apache.james.mailbox.MailboxSession)
-     */
+    @Override
     public Map<MessageUid, Flags> setFlags(final Flags flags, final FlagsUpdateMode flagsUpdateMode, final MessageRange set, MailboxSession mailboxSession) throws MailboxException {
 
         if (!isWriteable(mailboxSession)) {
@@ -644,18 +639,12 @@ public class StoreMessageManager implements org.apache.james.mailbox.MessageMana
 
     }
 
-    /**
-     * @see org.apache.james.mailbox.MessageManager#getMessageCount(org.apache.james.mailbox.MailboxSession)
-     */
+    @Override
     public long getMessageCount(MailboxSession mailboxSession) throws MailboxException {
         return mapperFactory.getMessageMapper(mailboxSession).countMessagesInMailbox(getMailboxEntity());
     }
 
-    /**
-     * @see org.apache.james.mailbox.MessageManager#getMessages(org.apache.james.mailbox.model.MessageRange,
-     *      org.apache.james.mailbox.model.MessageResult.FetchGroup,
-     *      org.apache.james.mailbox.MailboxSession)
-     */
+    @Override
     public MessageResultIterator getMessages(MessageRange set, FetchGroup fetchGroup, MailboxSession mailboxSession) throws MailboxException {
         final MessageMapper messageMapper = mapperFactory.getMessageMapper(mailboxSession);
         return new StoreMessageResultIterator(messageMapper, mailbox, set, batchSizes, fetchGroup);
@@ -709,13 +698,14 @@ public class StoreMessageManager implements org.apache.james.mailbox.MessageMana
     private Iterator<MessageMetaData> copy(Iterator<MailboxMessage> originalRows, MailboxSession session) throws MailboxException {
         final List<MessageMetaData> copiedRows = new ArrayList<>();
         final MessageMapper messageMapper = mapperFactory.getMessageMapper(session);
-        QuotaChecker quotaChecker = new QuotaChecker(quotaManager, quotaRootResolver, mailbox);
 
         while (originalRows.hasNext()) {
             final MailboxMessage originalMessage = originalRows.next();
-            quotaChecker.tryAddition(1, originalMessage.getFullContentOctets());
+            new QuotaChecker(quotaManager, quotaRootResolver, mailbox)
+                .tryAddition(1, originalMessage.getFullContentOctets());
             MessageMetaData data = messageMapper.execute(
                 () -> messageMapper.copy(getMailboxEntity(), originalMessage));
+            dispatcher.added(session, this.getMailboxEntity(), immutableMailboxMessageFactory.from(getMailboxEntity().getMailboxId(), originalMessage));
             copiedRows.add(data);
         }
         return copiedRows.iterator();
@@ -743,11 +733,16 @@ public class StoreMessageManager implements org.apache.james.mailbox.MessageMana
         SortedMap<MessageUid, MessageMetaData> copiedUids = collectMetadata(to.copy(originalRows, session));
 
         ImmutableMap.Builder<MessageUid, MailboxMessage> messagesMap = ImmutableMap.builder();
-        for (MailboxMessage message: originalRows.getEntriesSeen()) {
+        for (MailboxMessage message : originalRows.getEntriesSeen()) {
             messagesMap.put(message.getUid(), immutableMailboxMessageFactory.from(to.getMailboxEntity().getMailboxId(), message));
         }
         dispatcher.added(session, copiedUids, to.getMailboxEntity(), messagesMap.build());
-
+        dispatcher.moved(session,
+            MessageMoves.builder()
+                .previousMailboxIds(getMailboxEntity().getMailboxId())
+                .targetMailboxIds(to.getMailboxEntity().getMailboxId(), getMailboxEntity().getMailboxId())
+                .build(),
+            messagesMap.build());
         return copiedUids;
     }
 
@@ -758,11 +753,17 @@ public class StoreMessageManager implements org.apache.james.mailbox.MessageMana
         SortedMap<MessageUid, MessageMetaData> moveUids = collectMetadata(moveResult.getMovedMessages());
 
         ImmutableMap.Builder<MessageUid, MailboxMessage> messagesMap = ImmutableMap.builder();
-        for (MailboxMessage message: originalRows.getEntriesSeen()) {
+        for (MailboxMessage message : originalRows.getEntriesSeen()) {
             messagesMap.put(message.getUid(), immutableMailboxMessageFactory.from(to.getMailboxEntity().getMailboxId(), message));
         }
         dispatcher.added(session, moveUids, to.getMailboxEntity(), messagesMap.build());
         dispatcher.expunged(session, collectMetadata(moveResult.getOriginalMessages()), getMailboxEntity());
+        dispatcher.moved(session,
+            MessageMoves.builder()
+                .previousMailboxIds(getMailboxEntity().getMailboxId())
+                .targetMailboxIds(to.getMailboxEntity().getMailboxId())
+                .build(),
+            messagesMap.build());
         return moveUids;
     }
 

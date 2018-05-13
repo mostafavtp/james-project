@@ -25,6 +25,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.util.Date;
+import java.util.Optional;
 
 import javax.mail.Flags;
 
@@ -32,8 +33,10 @@ import org.apache.james.mailbox.MailboxListener;
 import org.apache.james.mailbox.MessageUid;
 import org.apache.james.mailbox.model.MailboxPath;
 import org.apache.james.mailbox.model.QuotaRoot;
+import org.apache.james.mailbox.quota.QuotaManager;
 import org.apache.james.mailbox.quota.QuotaRootResolver;
 import org.apache.james.mailbox.store.SimpleMessageMetaData;
+import org.apache.james.mailbox.store.event.MailboxEventDispatcher;
 import org.apache.james.mailbox.store.mail.model.DefaultMessageId;
 import org.junit.Before;
 import org.junit.Test;
@@ -44,7 +47,7 @@ public class ListeningCurrentQuotaUpdaterTest {
 
     public static final int SIZE = 45;
     public static final MailboxPath MAILBOX_PATH = MailboxPath.forUser("benwa", "INBOX");
-    public static final QuotaRoot QUOTA_ROOT = QuotaRoot.quotaRoot("benwa");
+    public static final QuotaRoot QUOTA_ROOT = QuotaRoot.quotaRoot("benwa", Optional.empty());
 
     private StoreCurrentQuotaManager mockedCurrentQuotaManager;
     private QuotaRootResolver mockedQuotaRootResolver;
@@ -54,7 +57,8 @@ public class ListeningCurrentQuotaUpdaterTest {
     public void setUp() throws Exception {
         mockedQuotaRootResolver = mock(QuotaRootResolver.class);
         mockedCurrentQuotaManager = mock(StoreCurrentQuotaManager.class);
-        testee = new ListeningCurrentQuotaUpdater(mockedCurrentQuotaManager, mockedQuotaRootResolver);
+        testee = new ListeningCurrentQuotaUpdater(mockedCurrentQuotaManager, mockedQuotaRootResolver,
+            mock(MailboxEventDispatcher.class), mock(QuotaManager.class));
     }
 
     @Test

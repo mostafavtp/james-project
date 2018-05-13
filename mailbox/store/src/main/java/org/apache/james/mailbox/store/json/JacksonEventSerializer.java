@@ -50,11 +50,13 @@ public class JacksonEventSerializer implements EventSerializer {
         this.objectMapper = objectMapper;
     }
 
-    public byte[] serializeEvent(MailboxListener.Event event) throws Exception {
+    @Override
+    public byte[] serializeEvent(MailboxListener.MailboxEvent event) throws Exception {
         return objectMapper.writeValueAsBytes(eventConverter.convertToDataTransferObject(event));
     }
 
-    public MailboxListener.Event deSerializeEvent(byte[] serializedEvent) throws Exception {
+    @Override
+    public MailboxListener.MailboxEvent deSerializeEvent(byte[] serializedEvent) throws Exception {
         EventDataTransferObject eventDataTransferObject = objectMapper.readValue(serializedEvent, EventDataTransferObject.class);
         return eventConverter.retrieveEvent(eventDataTransferObject);
     }

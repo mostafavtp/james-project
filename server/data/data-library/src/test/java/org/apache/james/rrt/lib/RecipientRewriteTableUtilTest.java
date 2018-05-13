@@ -20,16 +20,31 @@ package org.apache.james.rrt.lib;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import org.apache.james.core.MailAddress;
 import org.junit.Test;
 
 public class RecipientRewriteTableUtilTest {
 
     @Test
-    public void regexMapShouldCorrectlyReplaceMatchingUsername() throws Exception {
-        MailAddress mailAddress = new MailAddress("prefix_abc@test");
-        assertThat(RecipientRewriteTableUtil.regexMap(mailAddress, "regex:prefix_.*:admin@test"))
-            .isEqualTo("admin@test");
+    public void getSeparatorShouldReturnCommaWhenCommaIsPresent() {
+        String separator = RecipientRewriteTableUtil.getSeparator("regex:(.*)@localhost, regex:user@test");
+        assertThat(separator).isEqualTo(",");
     }
 
+    @Test
+    public void getSeparatorShouldReturnEmptyWhenColonIsPresentInPrefix() {
+        String separator = RecipientRewriteTableUtil.getSeparator("regex:(.*)@localhost");
+        assertThat(separator).isEqualTo("");
+    }
+
+    @Test
+    public void getSeparatorShouldReturnEmptyWhenColonIsPresent() {
+        String separator = RecipientRewriteTableUtil.getSeparator("(.*)@localhost: user@test");
+        assertThat(separator).isEqualTo(":");
+    }
+
+    @Test
+    public void getSeparatorShouldReturnColonWhenNoSeparator() {
+        String separator = RecipientRewriteTableUtil.getSeparator("user@test");
+        assertThat(separator).isEqualTo(":");
+    }
 }

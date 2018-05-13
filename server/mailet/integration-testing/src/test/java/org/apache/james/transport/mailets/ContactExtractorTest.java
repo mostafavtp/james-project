@@ -104,6 +104,11 @@ public class ContactExtractorTest {
         probe.addDomain(DEFAULT_DOMAIN);
         probe.addUser(SENDER, PASSWORD);
         probe.addUser(TO, PASSWORD);
+        probe.addUser(TO2, PASSWORD);
+        probe.addUser(CC, PASSWORD);
+        probe.addUser(CC2, PASSWORD);
+        probe.addUser(BCC, PASSWORD);
+        probe.addUser(BCC2, PASSWORD);
     }
 
     @After
@@ -125,8 +130,7 @@ public class ContactExtractorTest {
             .sendMessage(FakeMail.builder()
                 .mimeMessage(message)
                 .sender(SENDER)
-                .recipients(TO, TO2, CC, CC2, BCC, BCC2))
-            .awaitSent(awaitAtMostOneMinute);
+                .recipients(TO, TO2, CC, CC2, BCC, BCC2));
 
         imapMessageReader.connect(LOCALHOST_IP, IMAP_PORT)
             .login(TO, PASSWORD)

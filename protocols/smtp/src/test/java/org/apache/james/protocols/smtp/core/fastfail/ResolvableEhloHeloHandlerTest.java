@@ -50,30 +50,32 @@ public class ResolvableEhloHeloHandlerTest {
             HashMap<String,Object> connectionMap = new HashMap<>();
             HashMap<String,Object> map = new HashMap<>();
 
+            @Override
             public boolean isAuthSupported() {
                 return authRequired;
             }
 
+            @Override
             public String getUser() {
                 return user;
             }
 
+            @Override
             public Map<String,Object> getConnectionState() {
                 return connectionMap;
             }
 
+            @Override
             public boolean isRelayingAllowed() {
                 return relaying;
             }
 
+            @Override
             public Map<String,Object> getState() {
                 return map;
             }
 
-            /*
-             * (non-Javadoc)
-             * @see org.apache.james.protocols.api.ProtocolSession#setAttachment(java.lang.String, java.lang.Object, org.apache.james.protocols.api.ProtocolSession.State)
-             */
+            @Override
             public Object setAttachment(String key, Object value, State state) {
                 if (state == State.Connection) {
                     if (value == null) {
@@ -90,10 +92,7 @@ public class ResolvableEhloHeloHandlerTest {
                 }
             }
 
-            /*
-             * (non-Javadoc)
-             * @see org.apache.james.protocols.api.ProtocolSession#getAttachment(java.lang.String, org.apache.james.protocols.api.ProtocolSession.State)
-             */
+            @Override
             public Object getAttachment(String key, State state) {
                 if (state == State.Connection) {
                     return connectionMap.get(key);
@@ -127,9 +126,9 @@ public class ResolvableEhloHeloHandlerTest {
         
         handler.doHelo(session, INVALID_HOST);
         assertNotNull("Invalid HELO",session.getAttachment(ResolvableEhloHeloHandler.BAD_EHLO_HELO, State.Transaction));
-        
-        int result = handler.doRcpt(session,null, mailAddress).getResult();
-        assertEquals("Reject", result,HookReturnCode.DENY);
+
+        HookReturnCode result = handler.doRcpt(session,null, mailAddress).getResult();
+        assertEquals("Reject", result,HookReturnCode.deny());
     }
     
     @Test
@@ -142,8 +141,8 @@ public class ResolvableEhloHeloHandlerTest {
         handler.doHelo(session, VALID_HOST);
         assertNull("Valid HELO",session.getAttachment(ResolvableEhloHeloHandler.BAD_EHLO_HELO, State.Transaction));
 
-        int result = handler.doRcpt(session,null, mailAddress).getResult();
-        assertEquals("Not reject", result,HookReturnCode.DECLINED);
+        HookReturnCode result = handler.doRcpt(session,null, mailAddress).getResult();
+        assertEquals("Not reject", result,HookReturnCode.declined());
     }
    
     @Test
@@ -155,10 +154,10 @@ public class ResolvableEhloHeloHandlerTest {
 
         handler.doHelo(session, INVALID_HOST);
         assertNotNull("Value stored",session.getAttachment(ResolvableEhloHeloHandler.BAD_EHLO_HELO, State.Transaction));
-        
-        
-        int result = handler.doRcpt(session,null, mailAddress).getResult();
-        assertEquals("Reject", result,HookReturnCode.DENY);
+
+
+        HookReturnCode result = handler.doRcpt(session,null, mailAddress).getResult();
+        assertEquals("Reject", result,HookReturnCode.deny());
     }
     
    
@@ -171,10 +170,10 @@ public class ResolvableEhloHeloHandlerTest {
 
         handler.doHelo(session, INVALID_HOST);
         assertNotNull("Value stored",session.getAttachment(ResolvableEhloHeloHandler.BAD_EHLO_HELO, State.Transaction));
-        
-        
-        int result = handler.doRcpt(session,null, mailAddress).getResult();
-        assertEquals("Reject", result,HookReturnCode.DENY);
+
+
+        HookReturnCode result = handler.doRcpt(session,null, mailAddress).getResult();
+        assertEquals("Reject", result,HookReturnCode.deny());
     }
 }
     

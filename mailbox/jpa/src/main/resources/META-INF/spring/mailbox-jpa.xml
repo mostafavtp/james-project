@@ -78,6 +78,9 @@
         <property name="url" value="${database.url}" />
         <property name="username" value="${database.username}" />
         <property name="password" value="${database.password}" />
+        <property name="testOnBorrow" value="${datasource.testOnBorrow:false}" />
+        <property name="validationQueryTimeout" value="${datasource.validationQueryTimeoutSec:-1}" />
+        <property name="validationQuery" value="${datasource.validationQuery:#{null}}" />
     </bean>
     <bean id="entityManagerFactory" class="org.springframework.orm.jpa.LocalContainerEntityManagerFactoryBean">
         <property name="dataSource" ref="datasource"/>
@@ -92,8 +95,12 @@
 
     <bean id="jpa-mailbox-id-deserializer" class="org.apache.james.mailbox.jpa.JPAMailboxIdDeserializer"/>
 
-    <bean id="jpaMaxQuotaManager" class="org.apache.james.mailbox.jpa.quota.JPAPerUserMaxQuotaManager">
+    <bean id="jpa-per-user-max-quota-dao" class="org.apache.james.mailbox.jpa.quota.JPAPerUserMaxQuotaDAO">
         <constructor-arg index="0" ref="entityManagerFactory"/>
+    </bean>
+
+    <bean id="jpaMaxQuotaManager" class="org.apache.james.mailbox.jpa.quota.JPAPerUserMaxQuotaManager">
+        <constructor-arg index="0" ref="jpa-per-user-max-quota-dao"/>
     </bean>
     <bean id="jpaCurrentQuotaManager" class="org.apache.james.mailbox.jpa.quota.JpaCurrentQuotaManager">
         <constructor-arg index="0" ref="entityManagerFactory"/>

@@ -43,6 +43,11 @@
         </processor>
 
         <processor state="transport" enableJmx="false">
+            <matcher name="mdn-matcher" match="org.apache.james.mailetcontainer.impl.matchers.And">
+                <matcher match="HasMimeType=multipart/report"/>
+                <matcher match="HasMimeTypeParameter=report-type=disposition-notification"/>
+            </matcher>
+
             <mailet match="SMTPAuthSuccessful" class="SetMimeHeader">
                 <name>X-UserIsAuth</name>
                 <value>true</value>
@@ -51,8 +56,20 @@
                 <name>bcc</name>
             </mailet>
             <mailet match="All" class="org.apache.james.jmap.mailet.TextCalendarBodyToAttachment"/>
+            <mailet match="All" class="RecipientRewriteTable">
+                <errorProcessor>rrt-error</errorProcessor>
+            </mailet>
             <mailet match="RecipientIsLocal" class="org.apache.james.jmap.mailet.VacationMailet"/>
+            <mailet match="mdn-matcher" class="org.apache.james.jmap.mailet.ExtractMDNOriginalJMAPMessageId" />
             <mailet match="RecipientIsLocal" class="Sieve"/>
+            <mailet match="RecipientIsLocal" class="SpamAssassin">
+                <onMailetException>ignore</onMailetException>
+                <spamdHost>localhost</spamdHost>
+                <spamdPort>783</spamdPort>
+            </mailet>
+            <mailet match="IsMarkedAsSpam" class="WithStorageDirective">
+                <targetFolderName>Spam</targetFolderName>
+            </mailet>
             <mailet match="RecipientIsLocal" class="LocalDelivery"/>
             <mailet match="HostIsLocal" class="ToProcessor">
                 <processor>local-address-error</processor>
@@ -106,6 +123,15 @@
             <mailet match="All" class="DSNBounce">
                 <passThrough>false</passThrough>
             </mailet>
+        </processor>
+
+        <processor state="rrt-error" enableJmx="false">
+            <mailet match="All" class="ToRepository">
+                <repositoryPath>cassandra://var/mail/rrt-error/</repositoryPath>
+                <passThrough>true</passThrough>
+            </mailet>
+            <mailet match="IsSenderInRRTLoop" class="Null"/>
+            <mailet match="All" class="Bounce"/>
         </processor>
 
     </processors>

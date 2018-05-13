@@ -161,11 +161,11 @@ A mapping is a recipient rewritting rule. There is several kind of rewritting ru
  - address mapping: rewrite a given mail address into an other one.
  - regex mapping.
 
-You can manage address mapping like (redirects email from user@domain.tld to redirected@domain.new, then deletes the mapping):
+You can manage address mapping like (redirects email from fromUser@fromDomain.tld to redirected@domain.new, then deletes the mapping):
 
 ```
-{cli} AddAddressMapping redirected domain.new user@domain.tld
-{cli} RemoveAddressMapping redirected domain.new user@domain.tld
+{cli} AddAddressMapping fromUser fromDomain.tld redirected@domain.new
+{cli} RemoveAddressMapping fromUser fromDomain.tld redirected@domain.new
 ```
 
 You can manage regex mapping like this:
@@ -249,13 +249,13 @@ With value being an integer. Please note the use of units for storage (K, M, G).
 {cli} SetMaxStorageQuota someone@apache.org 4G
 ```
 
-Moreover, James allows to specify defaults maximum values, at the server level. Note: syntax is similar to what was exposed previously.
+Moreover, James allows to specify global maximum values, at the server level. Note: syntax is similar to what was exposed previously.
 
 ```
-{cli} SetDefaultMaxMessageCountQuota value
-{cli} GetDefaultMaxMessageCountQuota
-{cli} SetDefaultMaxStorageQuota value
-{cli} GetDefaultMaxStorageQuota
+{cli} SetGlobalMaxMessageCountQuota value
+{cli} GetGlobalMaxMessageCountQuota
+{cli} SetGlobalMaxStorageQuota value
+{cli} GetGlobalMaxStorageQuota
 ```
 
 ## Re-indexing

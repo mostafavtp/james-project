@@ -20,18 +20,20 @@
 package org.apache.james.jmap.methods.integration;
 
 import static com.jayway.restassured.RestAssured.given;
-import static com.jayway.restassured.config.EncoderConfig.encoderConfig;
-import static com.jayway.restassured.config.RestAssuredConfig.newConfig;
+import static org.apache.james.jmap.HttpJmapAuthentication.authenticateJamesUser;
+import static org.apache.james.jmap.JmapURIBuilder.baseUri;
+import static org.apache.james.jmap.TestingConstants.ARGUMENTS;
+import static org.apache.james.jmap.TestingConstants.DOMAIN;
+import static org.apache.james.jmap.TestingConstants.NAME;
+import static org.apache.james.jmap.TestingConstants.jmapRequestSpecBuilder;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 
-import java.nio.charset.StandardCharsets;
+import java.io.IOException;
 import java.time.ZonedDateTime;
 import java.util.Optional;
 
-import org.apache.http.client.utils.URIBuilder;
 import org.apache.james.GuiceJamesServer;
-import org.apache.james.jmap.HttpJmapAuthentication;
 import org.apache.james.jmap.api.access.AccessToken;
 import org.apache.james.jmap.api.vacation.AccountId;
 import org.apache.james.jmap.api.vacation.Vacation;
@@ -44,20 +46,16 @@ import org.junit.Before;
 import org.junit.Test;
 
 import com.jayway.restassured.RestAssured;
-import com.jayway.restassured.builder.RequestSpecBuilder;
 import com.jayway.restassured.http.ContentType;
 
 public abstract class SetVacationResponseTest {
 
-    private static final String NAME = "[0][0]";
-    private static final String ARGUMENTS = "[0][1]";
-    private static final String USERS_DOMAIN = "domain.tld";
-    public static final String USER = "username@" + USERS_DOMAIN;
+    public static final String USER = "username@" + DOMAIN;
     public static final String PASSWORD = "password";
     public static final String SUBJECT = "subject";
     private JmapGuiceProbe jmapGuiceProbe;
 
-    protected abstract GuiceJamesServer createJmapServer();
+    protected abstract GuiceJamesServer createJmapServer() throws IOException;
 
     protected abstract void await();
 
@@ -69,28 +67,15 @@ public abstract class SetVacationResponseTest {
         jmapServer = createJmapServer();
         jmapServer.start();
         jmapGuiceProbe = jmapServer.getProbe(JmapGuiceProbe.class);
-        RestAssured.requestSpecification = new RequestSpecBuilder()
-                .setContentType(ContentType.JSON)
-                .setAccept(ContentType.JSON)
-                .setConfig(newConfig().encoderConfig(encoderConfig().defaultContentCharset(StandardCharsets.UTF_8)))
-                .setPort(jmapGuiceProbe
-                    .getJmapPort())
+        RestAssured.requestSpecification = jmapRequestSpecBuilder
+                .setPort(jmapGuiceProbe.getJmapPort())
                 .build();
 
-        jmapServer.getProbe(DataProbeImpl.class).addDomain(USERS_DOMAIN);
+        jmapServer.getProbe(DataProbeImpl.class).addDomain(DOMAIN);
         jmapServer.getProbe(DataProbeImpl.class).addUser(USER, PASSWORD);
-        accessToken = HttpJmapAuthentication.authenticateJamesUser(baseUri(), USER, PASSWORD);
+        accessToken = authenticateJamesUser(baseUri(jmapServer), USER, PASSWORD);
 
         await();
-    }
-
-    private URIBuilder baseUri() {
-        return new URIBuilder()
-            .setScheme("http")
-            .setHost("localhost")
-            .setPort(jmapServer.getProbe(JmapGuiceProbe.class)
-                .getJmapPort())
-            .setCharset(StandardCharsets.UTF_8);
     }
 
     @After

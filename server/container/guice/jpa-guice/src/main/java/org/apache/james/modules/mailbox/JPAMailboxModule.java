@@ -19,7 +19,9 @@
 package org.apache.james.modules.mailbox;
 
 import java.io.FileNotFoundException;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 
 import javax.inject.Singleton;
 import javax.persistence.EntityManagerFactory;
@@ -30,6 +32,7 @@ import org.apache.commons.configuration.PropertiesConfiguration;
 import org.apache.james.JPAConfiguration;
 import org.apache.james.adapter.mailbox.store.UserRepositoryAuthenticator;
 import org.apache.james.adapter.mailbox.store.UserRepositoryAuthorizator;
+import org.apache.james.backends.jpa.JPAConstants;
 import org.apache.james.mailbox.MailboxManager;
 import org.apache.james.mailbox.MailboxPathLocker;
 import org.apache.james.mailbox.SubscriptionManager;
@@ -46,6 +49,8 @@ import org.apache.james.mailbox.jpa.mail.JPAUidProvider;
 import org.apache.james.mailbox.jpa.openjpa.OpenJPAMailboxManager;
 import org.apache.james.mailbox.model.MailboxId;
 import org.apache.james.mailbox.model.MessageId;
+import org.apache.james.mailbox.quota.QuotaManager;
+import org.apache.james.mailbox.quota.QuotaRootResolver;
 import org.apache.james.mailbox.store.Authenticator;
 import org.apache.james.mailbox.store.Authorizator;
 import org.apache.james.mailbox.store.JVMMailboxPathLocker;
@@ -55,10 +60,12 @@ import org.apache.james.mailbox.store.mail.MessageMapperFactory;
 import org.apache.james.mailbox.store.mail.ModSeqProvider;
 import org.apache.james.mailbox.store.mail.UidProvider;
 import org.apache.james.mailbox.store.mail.model.DefaultMessageId;
+import org.apache.james.mailbox.store.quota.ListeningCurrentQuotaUpdater;
 import org.apache.james.modules.Names;
 import org.apache.james.utils.MailboxManagerDefinition;
 import org.apache.james.utils.PropertiesProvider;
 
+import com.google.common.base.Joiner;
 import com.google.inject.AbstractModule;
 import com.google.inject.Inject;
 import com.google.inject.Provides;
@@ -107,7 +114,11 @@ public class JPAMailboxModule extends AbstractModule {
     @Provides
     @Named(Names.MAILBOXMANAGER_NAME)
     @Singleton
-    public MailboxManager provideMailboxManager(OpenJPAMailboxManager jpaMailboxManager) throws MailboxException {
+    public MailboxManager provideMailboxManager(OpenJPAMailboxManager jpaMailboxManager, ListeningCurrentQuotaUpdater quotaUpdater,
+                                                QuotaManager quotaManager, QuotaRootResolver quotaRootResolver) throws MailboxException {
+        jpaMailboxManager.setQuotaRootResolver(quotaRootResolver);
+        jpaMailboxManager.setQuotaManager(quotaManager);
+        jpaMailboxManager.setQuotaUpdater(quotaUpdater);
         jpaMailboxManager.init();
         return jpaMailboxManager;
     }
@@ -128,8 +139,17 @@ public class JPAMailboxModule extends AbstractModule {
         properties.put("openjpa.ConnectionDriverName", jpaConfiguration.getDriverName());
         properties.put("openjpa.ConnectionURL", jpaConfiguration.getDriverURL());
 
-        return Persistence.createEntityManagerFactory("Global", properties);
+        List<String> connectionFactoryProperties = new ArrayList<>();
+        connectionFactoryProperties.add("TestOnBorrow=" + jpaConfiguration.isTestOnBorrow());
+        if (jpaConfiguration.getValidationQueryTimeoutSec() > 0) {
+            connectionFactoryProperties.add("ValidationTimeout=" + jpaConfiguration.getValidationQueryTimeoutSec() * 1000);
+        }
+        if (jpaConfiguration.getValidationQuery() != null) {
+            connectionFactoryProperties.add("ValidationSQL='" + jpaConfiguration.getValidationQuery() + "'");
+        }
+        properties.put("openjpa.ConnectionFactoryProperties", Joiner.on(", ").join(connectionFactoryProperties));
 
+        return Persistence.createEntityManagerFactory("Global", properties);
     }
 
     @Provides
@@ -139,6 +159,9 @@ public class JPAMailboxModule extends AbstractModule {
         return JPAConfiguration.builder()
                 .driverName(dataSource.getString("database.driverClassName"))
                 .driverURL(dataSource.getString("database.url"))
+                .testOnBorrow(dataSource.getBoolean("datasource.testOnBorrow", false))
+                .validationQueryTimeoutSec(dataSource.getInt("datasource.validationQueryTimeoutSec", JPAConstants.VALIDATION_NO_TIMEOUT))
+                .validationQuery(dataSource.getString("datasource.validationQuery", null))
                 .build();
     }
 }

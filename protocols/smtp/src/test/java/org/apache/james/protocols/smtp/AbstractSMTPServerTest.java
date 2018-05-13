@@ -48,7 +48,6 @@ import org.apache.james.protocols.api.handler.WiringException;
 import org.apache.james.protocols.api.utils.ProtocolServerUtils;
 import org.apache.james.protocols.smtp.hook.HeloHook;
 import org.apache.james.protocols.smtp.hook.HookResult;
-import org.apache.james.protocols.smtp.hook.HookReturnCode;
 import org.apache.james.protocols.smtp.hook.MailHook;
 import org.apache.james.protocols.smtp.hook.MessageHook;
 import org.apache.james.protocols.smtp.hook.RcptHook;
@@ -499,8 +498,9 @@ public abstract class AbstractSMTPServerTest {
 
             }
 
+            @Override
             public HookResult doHelo(SMTPSession session, String helo) {
-                return new HookResult(HookReturnCode.DENY);
+                return HookResult.DENY;
             }
         };
         
@@ -546,8 +546,9 @@ public abstract class AbstractSMTPServerTest {
 
             }
 
+            @Override
             public HookResult doHelo(SMTPSession session, String helo) {
-                return new HookResult(HookReturnCode.DENYSOFT);
+                return HookResult.DENYSOFT;
             }
         };
         
@@ -592,8 +593,9 @@ public abstract class AbstractSMTPServerTest {
 
             }
 
+            @Override
             public HookResult doMail(SMTPSession session, MailAddress sender) {
-                return new HookResult(HookReturnCode.DENY);
+                return HookResult.DENY;
             }
         };
         
@@ -641,8 +643,9 @@ public abstract class AbstractSMTPServerTest {
 
             }
 
+            @Override
             public HookResult doMail(SMTPSession session, MailAddress sender) {
-                return new HookResult(HookReturnCode.DENYSOFT);
+                return HookResult.DENYSOFT;
             }
         };
         
@@ -691,11 +694,12 @@ public abstract class AbstractSMTPServerTest {
 
             }
 
+            @Override
             public HookResult doRcpt(SMTPSession session, MailAddress sender, MailAddress rcpt) {
                 if (RCPT1.equals(rcpt.toString())) {
-                    return new HookResult(HookReturnCode.DENY);
+                    return HookResult.DENY;
                 } else {
-                    return new HookResult(HookReturnCode.DECLINED);
+                    return HookResult.DECLINED;
                 }
             }
 
@@ -754,11 +758,12 @@ public abstract class AbstractSMTPServerTest {
 
             }
 
+            @Override
             public HookResult doRcpt(SMTPSession session, MailAddress sender, MailAddress rcpt) {
                 if (RCPT1.equals(rcpt.toString())) {
-                    return new HookResult(HookReturnCode.DENYSOFT);
+                    return HookResult.DENYSOFT;
                 } else {
-                    return new HookResult(HookReturnCode.DECLINED);
+                    return HookResult.DECLINED;
                 }
             }
 
@@ -852,8 +857,9 @@ public abstract class AbstractSMTPServerTest {
 
             }
 
+            @Override
             public HookResult onMessage(SMTPSession session, MailEnvelope mail) {
-                return new HookResult(HookReturnCode.DENY);
+                return HookResult.DENY;
             }
 
 
@@ -915,8 +921,9 @@ public abstract class AbstractSMTPServerTest {
 
             }
 
+            @Override
             public HookResult onMessage(SMTPSession session, MailEnvelope mail) {
-                return new HookResult(HookReturnCode.DENYSOFT);
+                return HookResult.DENYSOFT;
             }
 
 
@@ -977,6 +984,7 @@ public abstract class AbstractSMTPServerTest {
 
             }
 
+            @Override
             public Response onConnect(SMTPSession session) {
                 return new SMTPResponse("554", "Bye Bye");
             }
@@ -1019,6 +1027,7 @@ public abstract class AbstractSMTPServerTest {
 
             }
 
+            @Override
             public Response onConnect(SMTPSession session) {
                 return new SMTPResponse("451", "Bye Bye");
             }
@@ -1061,6 +1070,7 @@ public abstract class AbstractSMTPServerTest {
 
             }
 
+            @Override
             public void onDisconnect(SMTPSession session) {
                 called.set(true);
             }

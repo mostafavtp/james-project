@@ -20,37 +20,39 @@
 
 package org.apache.james.transport.matchers;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+
 import java.util.Collection;
 
 import javax.mail.MessagingException;
 
 import org.apache.james.core.MailAddress;
 import org.apache.mailet.base.GenericMatcher;
+import org.junit.jupiter.api.Test;
+import org.opentest4j.AssertionFailedError;
 
-import junit.framework.AssertionFailedError;
-
-public class HasMailAttributeWithValueRegexTest extends
-        AbstractHasMailAttributeTest {
+public class HasMailAttributeWithValueRegexTest extends AbstractHasMailAttributeTest {
 
     private String regex = ".*";
-
-    public HasMailAttributeWithValueRegexTest() {
-        super();
-    }
 
     private void setRegex(String regex) {
         this.regex = regex;
     }
 
+    @Override
     protected String getHasMailAttribute() {
         return MAIL_ATTRIBUTE_NAME + ", " + regex;
     }
 
+    @Override
     protected GenericMatcher createMatcher() {
         return new HasMailAttributeWithValueRegex();
     }
 
-    // test if the mail attribute was matched
+    @Override
+    @Test
     public void testAttributeIsMatched() throws MessagingException {
         init();
         setRegex(".*");
@@ -63,8 +65,8 @@ public class HasMailAttributeWithValueRegexTest extends
                 .size());
     }
 
-    // test if the mail attribute was not matched
-    public void testHeaderIsNotMatched() throws MessagingException {
+    @Test
+    void testHeaderIsNotMatched() throws MessagingException {
         setRegex("\\d");
         setupAll();
 
@@ -73,8 +75,8 @@ public class HasMailAttributeWithValueRegexTest extends
         assertNull(matchedRecipients);
     }
 
-    // test if an exception was thrown cause the regex was invalid
-    public void testHeaderIsNotMatchedCauseValue() throws MessagingException {
+    @Test
+    void testHeaderIsNotMatchedCauseValue() throws MessagingException {
 
         String invalidRegex = "(!(";
         String regexException = null;
@@ -102,6 +104,7 @@ public class HasMailAttributeWithValueRegexTest extends
         }
     }
 
+    @Override
     protected String getMatcherName() {
         return "HasMailAttributeWithValueRegex";
     }

@@ -50,14 +50,17 @@ import org.apache.james.mailbox.store.event.DefaultDelegatingMailboxListener;
 import org.apache.james.mailbox.store.event.MailboxEventDispatcher;
 import org.apache.james.mailbox.store.mail.model.impl.MessageParser;
 import org.apache.james.mailbox.store.quota.CurrentQuotaCalculator;
-import org.apache.james.mailbox.store.quota.DefaultQuotaRootResolver;
+import org.apache.james.mailbox.store.quota.DefaultUserQuotaRootResolver;
 import org.apache.james.mailbox.store.quota.ListeningCurrentQuotaUpdater;
 import org.apache.james.mailbox.store.quota.StoreQuotaManager;
+
+import com.google.common.base.Throwables;
 
 public class InMemoryIntegrationResources implements IntegrationResources<StoreMailboxManager> {
 
     private SimpleGroupMembershipResolver groupMembershipResolver;
-    private DefaultQuotaRootResolver quotaRootResolver;
+    private DefaultUserQuotaRootResolver quotaRootResolver;
+    private InMemoryCurrentQuotaManager currentQuotaManager;
 
     @Override
     public InMemoryMailboxManager createMailboxManager(GroupMembershipResolver groupMembershipResolver) throws MailboxException {
@@ -104,6 +107,11 @@ public class InMemoryIntegrationResources implements IntegrationResources<StoreM
             annotationManager,
             storeRightManager);
         manager.init();
+        try {
+            createQuotaManager(createMaxQuotaManager(), manager);
+        } catch (Exception e) {
+            throw Throwables.propagate(e);
+        }
         return manager;
     }
 
@@ -146,44 +154,50 @@ public class InMemoryIntegrationResources implements IntegrationResources<StoreM
 
         QuotaRootResolver quotaRootResolver =  createQuotaRootResolver(mailboxManager);
 
-        InMemoryCurrentQuotaManager currentQuotaManager = new InMemoryCurrentQuotaManager(
-            new CurrentQuotaCalculator(mailboxManager.getMapperFactory(), quotaRootResolver),
-            mailboxManager
-        );
+        InMemoryCurrentQuotaManager currentQuotaManager = createCurrentQuotaManager(mailboxManager);
 
-        ListeningCurrentQuotaUpdater listeningCurrentQuotaUpdater = new ListeningCurrentQuotaUpdater(currentQuotaManager, quotaRootResolver);
         StoreQuotaManager quotaManager = new StoreQuotaManager(currentQuotaManager, maxQuotaManager);
-        quotaManager.setCalculateWhenUnlimited(false);
+        ListeningCurrentQuotaUpdater listeningCurrentQuotaUpdater = new ListeningCurrentQuotaUpdater(currentQuotaManager, quotaRootResolver, mailboxManager.getEventDispatcher(), quotaManager);
         mailboxManager.setQuotaManager(quotaManager);
         mailboxManager.addGlobalListener(listeningCurrentQuotaUpdater, null);
         return quotaManager;
     }
 
     @Override
-    public MaxQuotaManager createMaxQuotaManager() throws Exception {
+    public InMemoryCurrentQuotaManager createCurrentQuotaManager(StoreMailboxManager mailboxManager) {
+        if (currentQuotaManager == null) {
+            currentQuotaManager = new InMemoryCurrentQuotaManager(
+                    new CurrentQuotaCalculator(mailboxManager.getMapperFactory(), createQuotaRootResolver(mailboxManager)),
+                    mailboxManager);
+        }
+        return currentQuotaManager;
+    }
+
+    @Override
+    public MaxQuotaManager createMaxQuotaManager() {
         return new InMemoryPerUserMaxQuotaManager();
     }
 
     @Override
-    public GroupMembershipResolver createGroupMembershipResolver() throws Exception {
+    public GroupMembershipResolver createGroupMembershipResolver() {
         groupMembershipResolver = new SimpleGroupMembershipResolver();
         return groupMembershipResolver;
     }
 
     @Override
-    public DefaultQuotaRootResolver createQuotaRootResolver(StoreMailboxManager mailboxManager) throws Exception {
+    public DefaultUserQuotaRootResolver createQuotaRootResolver(StoreMailboxManager mailboxManager) {
         if (quotaRootResolver == null) {
-            quotaRootResolver = new DefaultQuotaRootResolver(mailboxManager.getMapperFactory());
+            quotaRootResolver = new DefaultUserQuotaRootResolver(mailboxManager.getMapperFactory());
         }
         return quotaRootResolver;
     }
 
     @Override
-    public void init() throws MailboxException {
+    public void init() {
     }
 
     @Override
-    public void clean() throws MailboxException {
+    public void clean() {
     }
 
 }

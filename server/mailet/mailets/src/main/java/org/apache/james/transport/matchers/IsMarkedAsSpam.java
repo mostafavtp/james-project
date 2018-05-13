@@ -19,22 +19,21 @@
 
 package org.apache.james.transport.matchers;
 
-import java.io.Serializable;
 import java.util.Collection;
 import java.util.Locale;
 
 import javax.mail.MessagingException;
 
 import org.apache.james.core.MailAddress;
-import org.apache.james.util.scanner.SpamAssassinInvoker;
+import org.apache.james.util.scanner.SpamAssassinResult;
 import org.apache.mailet.Mail;
 import org.apache.mailet.base.GenericMatcher;
 
-import com.google.common.collect.ImmutableList;
+import com.github.steveash.guavate.Guavate;
 
 /**
  * <p>
- * Matches mails having a <pre>org.apache.james.spamassassin.status</pre> attribute with a <pre>Yes</pre> value.
+ * Matches mails having a <pre>org.apache.james.spamassassin.status</pre> per recipient header with a <pre>Yes</pre> value.
  * </p>
  * 
  * As an example, here is a part of a mailet pipeline which can be used in your LocalDelivery processor:
@@ -44,9 +43,8 @@ import com.google.common.collect.ImmutableList;
  *         <spamdHost>spamassassin</spamdHost>
  *         <spamdPort>783</spamdPort>
  *     </mailet>
- *     <mailet match="IsMarkedAsSpam" class="ToRecipientFolder">
- *         <folder>Spam</folder>
- *         <consume>true</consume>
+ *     <mailet match="IsMarkedAsSpam" class="WithStorageDirective">
+ *         <targetFolderName>Spam</targetFolderName>
  *     </mailet>
  * <!-- End of SpamAssassing mailets pipeline -->
  * }</pre>
@@ -57,7 +55,7 @@ public class IsMarkedAsSpam extends GenericMatcher {
 
     @Override
     public String getMatcherInfo() {
-        return "Has org.apache.james.spamassassin.status attribute with a Yes value Matcher";
+        return "Has org.apache.james.spamassassin.status per recipient header with a Yes value";
     }
 
     @Override
@@ -65,19 +63,18 @@ public class IsMarkedAsSpam extends GenericMatcher {
     }
 
     @Override
-    public Collection<MailAddress> match(Mail mail) throws MessagingException {
-        Serializable attribute = mail.getAttribute(SpamAssassinInvoker.STATUS_MAIL_ATTRIBUTE_NAME);
-        if (isMarkedAsSpam(attribute)) {
-            return mail.getRecipients();
-        }
-        return ImmutableList.of();
+    public Collection<MailAddress> match(Mail mail) {
+        return mail.getRecipients()
+            .stream()
+            .filter(recipient -> isMarkedAsSpam(mail, recipient))
+            .collect(Guavate.toImmutableList());
     }
 
-    private boolean isMarkedAsSpam(Serializable attribute) {
-        return attribute != null &&
-                attribute.toString()
-                    .toLowerCase(Locale.US)
-                    .startsWith(YES);
+    public boolean isMarkedAsSpam(Mail mail, MailAddress recipient) {
+        return mail.getPerRecipientSpecificHeaders().getHeadersForRecipient(recipient)
+            .stream()
+            .filter(header -> header.getName().equals(SpamAssassinResult.STATUS_MAIL_ATTRIBUTE_NAME))
+            .anyMatch(header -> header.getValue().toLowerCase(Locale.US).startsWith(YES));
     }
 
 }

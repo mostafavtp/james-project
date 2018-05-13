@@ -23,6 +23,8 @@ import java.util.function.Supplier;
 
 import org.apache.commons.lang.NotImplementedException;
 import org.apache.james.mailbox.model.MailboxPath;
+import org.apache.james.mailbox.quota.QuotaCount;
+import org.apache.james.mailbox.quota.QuotaSize;
 import org.apache.james.mpt.api.ImapFeatures;
 import org.apache.james.mpt.api.ImapFeatures.Feature;
 import org.apache.james.mpt.api.Session;
@@ -72,11 +74,13 @@ public class CyrusHostSystem extends ExternalHostSystem implements Provider<Cont
         return true;
     }
     
+    @Override
     public void beforeTest() throws Exception {
         container = docker.start();
         addressSupplier = () -> new InetSocketAddress(docker.getHost(container), docker.getIMAPPort(container));
     }
 
+    @Override
     public void afterTest() throws Exception {
         docker.stop(container);
         container = null;
@@ -131,7 +135,7 @@ public class CyrusHostSystem extends ExternalHostSystem implements Provider<Cont
     }
 
     @Override
-    public void setQuotaLimits(long maxMessageQuota, long maxStorageQuota) throws Exception {
+    public void setQuotaLimits(QuotaCount maxMessageQuota, QuotaSize maxStorageQuota) throws Exception {
         throw new NotImplementedException();
     }
 }

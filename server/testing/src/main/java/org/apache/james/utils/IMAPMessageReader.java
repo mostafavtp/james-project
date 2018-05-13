@@ -51,6 +51,11 @@ public class IMAPMessageReader extends ExternalResource implements Closeable {
         return this;
     }
 
+    public IMAPMessageReader disconnect() throws IOException {
+        imapClient.disconnect();
+        return this;
+    }
+
     public IMAPMessageReader login(String user, String password) throws IOException {
         imapClient.login(user, password);
         return this;
@@ -167,5 +172,18 @@ public class IMAPMessageReader extends ExternalResource implements Closeable {
 
     public void copyFirstMessage(String destMailbox) throws IOException {
         imapClient.copy("1", destMailbox);
+    }
+
+    public void moveFirstMessage(String destMailbox) throws IOException {
+        imapClient.sendCommand("MOVE 1 " + destMailbox);
+    }
+
+    public void expunge() throws IOException {
+        imapClient.expunge();
+    }
+
+    public String getQuotaRoot(String mailbox) throws IOException {
+        imapClient.sendCommand("GETQUOTAROOT " + mailbox);
+        return imapClient.getReplyString();
     }
 }

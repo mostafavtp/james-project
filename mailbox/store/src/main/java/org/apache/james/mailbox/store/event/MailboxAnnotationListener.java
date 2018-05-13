@@ -20,6 +20,9 @@ package org.apache.james.mailbox.store.event;
 
 import java.util.List;
 
+import javax.inject.Inject;
+
+import org.apache.james.mailbox.Event;
 import org.apache.james.mailbox.MailboxListener;
 import org.apache.james.mailbox.exception.MailboxException;
 import org.apache.james.mailbox.model.MailboxAnnotation;
@@ -33,6 +36,7 @@ public class MailboxAnnotationListener implements MailboxListener {
     private static final Logger logger = LoggerFactory.getLogger(MailboxAnnotationListener.class);
     private MailboxSessionMapperFactory mailboxSessionMapperFactory;
 
+    @Inject
     public MailboxAnnotationListener(MailboxSessionMapperFactory mailboxSessionMapperFactory) {
         this.mailboxSessionMapperFactory = mailboxSessionMapperFactory;
     }

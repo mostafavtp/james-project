@@ -20,30 +20,65 @@
 package org.apache.james.mailbox.store.mail.model;
 
 import java.io.Serializable;
+import java.util.Objects;
+import java.util.Optional;
 
 import org.apache.james.mailbox.model.Quota;
+import org.apache.james.mailbox.quota.QuotaValue;
 
-public class SerializableQuota implements Serializable {
+import com.google.common.base.MoreObjects;
 
-    private final long max;
-    private final long used;
+public class SerializableQuota<T extends QuotaValue<T>> implements Serializable {
 
-    public SerializableQuota(long max, long used) {
+    public static final long UNLIMITED = -1;
+
+    public static <U extends QuotaValue<U>> SerializableQuota<U> newInstance(Quota<U> quota) {
+        return newInstance(quota.getUsed(), quota.getLimit());
+    }
+
+    public static <U extends QuotaValue<U>> SerializableQuota<U> newInstance(U used, U max) {
+        return new SerializableQuota<>(
+            new SerializableQuotaValue<>(used),
+            new SerializableQuotaValue<>(max)
+        );
+    }
+
+    private final SerializableQuotaValue<T> max;
+    private final SerializableQuotaValue<T> used;
+
+    private SerializableQuota(SerializableQuotaValue<T> used, SerializableQuotaValue<T> max) {
         this.max = max;
         this.used = used;
     }
 
-    public SerializableQuota(Quota quota) {
-        this.max = quota.getMax();
-        this.used = quota.getUsed();
+    public Long encodeAsLong() {
+        return max.encodeAsLong();
     }
 
-    public long getMax() {
-        return max;
+    public Long getUsed() {
+        return Optional.ofNullable(used).map(SerializableQuotaValue::encodeAsLong).orElse(null);
     }
 
-    public long getUsed() {
-        return used;
+    @Override
+    public boolean equals(Object o) {
+        if (o instanceof SerializableQuota<?>) {
+            SerializableQuota<?> that = (SerializableQuota<?>) o;
+            return Objects.equals(max, that.max) &&
+                Objects.equals(used, that.used);
+        }
+        return false;
     }
 
+    @Override
+    public int hashCode() {
+        return Objects.hash(max, used);
+    }
+
+    @Override
+    public String toString() {
+        return MoreObjects.toStringHelper(this)
+            .add("max", max)
+            .add("used", used)
+            .toString();
+    }
 }

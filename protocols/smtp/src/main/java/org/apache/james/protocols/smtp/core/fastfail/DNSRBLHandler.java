@@ -177,9 +177,7 @@ public class DNSRBLHandler implements RcptHook {
         }
     }
     
-    /**
-     * @see org.apache.james.protocols.smtp.hook.RcptHook#doRcpt(org.apache.james.protocols.smtp.SMTPSession, org.apache.mailet.MailAddress, org.apache.mailet.MailAddress)
-     */
+    @Override
     public HookResult doRcpt(SMTPSession session, MailAddress sender, MailAddress rcpt) {
         checkDNSRBL(session, session.getRemoteAddress().getAddress().getHostAddress());
     
@@ -188,16 +186,23 @@ public class DNSRBLHandler implements RcptHook {
     
             if (blocklisted != null) { // was found in the RBL
                 if (blocklistedDetail == null) {
-                    return new HookResult(HookReturnCode.DENY,DSNStatus.getStatus(DSNStatus.PERMANENT,
-                            DSNStatus.SECURITY_AUTH)  + " Rejected: unauthenticated e-mail from " + session.getRemoteAddress().getAddress() 
-                            + " is restricted.  Contact the postmaster for details.");
+                    return HookResult.builder()
+                        .hookReturnCode(HookReturnCode.deny())
+                        .smtpDescription(DSNStatus.getStatus(DSNStatus.PERMANENT, DSNStatus.SECURITY_AUTH)
+                            + " Rejected: unauthenticated e-mail from " + session.getRemoteAddress().getAddress()
+                            + " is restricted.  Contact the postmaster for details.")
+                        .build();
                 } else {
-                    return new HookResult(HookReturnCode.DENY,DSNStatus.getStatus(DSNStatus.PERMANENT,DSNStatus.SECURITY_AUTH) + " " + blocklistedDetail);
+
+                    return HookResult.builder()
+                        .hookReturnCode(HookReturnCode.deny())
+                        .smtpDescription(DSNStatus.getStatus(DSNStatus.PERMANENT,DSNStatus.SECURITY_AUTH) + " " + blocklistedDetail)
+                        .build();
                 }
                
             }
         }
-        return HookResult.declined();
+        return HookResult.DECLINED;
     }
 
     /**

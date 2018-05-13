@@ -23,6 +23,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import java.util.Optional;
+
 import org.apache.james.mailbox.exception.MailboxException;
 import org.apache.james.mailbox.model.MailboxPath;
 import org.apache.james.mailbox.model.QuotaRoot;
@@ -41,15 +43,15 @@ public class DefaultQuotaRootResolverTest {
     public static final MailboxPath PATH_LIKE = MailboxPath.forUser("benwa", "%");
     public static final MailboxPath MAILBOX_PATH_2 = MailboxPath.forUser("benwa", "test");
     public static final SimpleMailbox MAILBOX_2 = new SimpleMailbox(MAILBOX_PATH_2, 10);
-    public static final QuotaRoot QUOTA_ROOT = QuotaRoot.quotaRoot("#private&benwa");
+    public static final QuotaRoot QUOTA_ROOT = QuotaRoot.quotaRoot("#private&benwa", Optional.empty());
 
-    private DefaultQuotaRootResolver testee;
+    private DefaultUserQuotaRootResolver testee;
     private MailboxSessionMapperFactory mockedFactory;
 
     @Before
     public void setUp() {
         mockedFactory = mock(MailboxSessionMapperFactory.class);
-        testee = new DefaultQuotaRootResolver(mockedFactory);
+        testee = new DefaultUserQuotaRootResolver(mockedFactory);
     }
 
     @Test
@@ -76,8 +78,8 @@ public class DefaultQuotaRootResolverTest {
     }
 
     @Test(expected = MailboxException.class)
-    public void retrieveAssociatedMailboxesShouldThrowWhenQuotaRootNotContainsSeparator2Times() throws Exception {
-        testee.retrieveAssociatedMailboxes(QuotaRoot.quotaRoot("#private&be&nwa"), null);
+    public void retrieveAssociatedMailboxesShouldThrowWhenQuotaRootContainsSeparator2Times() throws Exception {
+        testee.retrieveAssociatedMailboxes(QuotaRoot.quotaRoot("#private&be&nwa", Optional.empty()), null);
     }
 
 }

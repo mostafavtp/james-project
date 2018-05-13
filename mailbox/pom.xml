@@ -52,6 +52,11 @@
         <module>tika</module>
         <module>tool</module>
         <module>zoo-seq-provider</module>
+
+        <module>plugin/quota-mailing</module>
+        <module>plugin/quota-mailing-cassandra</module>
+        <module>plugin/quota-mailing-memory</module>
+        <module>plugin/spamassassin</module>
     </modules>
 
     <issueManagement>

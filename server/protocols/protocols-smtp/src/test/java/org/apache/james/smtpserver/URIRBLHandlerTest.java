@@ -39,8 +39,8 @@ import org.apache.james.protocols.smtp.hook.HookResult;
 import org.apache.james.protocols.smtp.hook.HookReturnCode;
 import org.apache.james.protocols.smtp.utils.BaseFakeSMTPSession;
 import org.apache.james.smtpserver.fastfail.URIRBLHandler;
-import org.apache.james.smtpserver.mock.mailet.MockMail;
 import org.apache.mailet.Mail;
+import org.apache.mailet.base.test.FakeMail;
 import org.junit.Test;
 
 public class URIRBLHandlerTest {
@@ -100,10 +100,10 @@ public class URIRBLHandlerTest {
 
     }
 
-    private Mail setupMockedMail(MimeMessage message) {
-        MockMail mail = new MockMail();
-        mail.setMessage(message);
-        return mail;
+    private Mail setupMockedMail(MimeMessage message) throws MessagingException {
+       return FakeMail.builder()
+            .mimeMessage(message)
+            .build();
     }
 
     public MimeMessage setupMockedMimeMessage(String text) throws MessagingException {
@@ -170,7 +170,7 @@ public class URIRBLHandlerTest {
         handler.setUriRblServer(servers);
         HookResult response = handler.onMessage(session, mockedMail);
 
-        assertEquals("Email was not rejected", response.getResult(), HookReturnCode.DECLINED);
+        assertEquals("Email was not rejected", response.getResult(), HookReturnCode.declined());
     }
 
     @Test
@@ -188,7 +188,7 @@ public class URIRBLHandlerTest {
         handler.setUriRblServer(servers);
         HookResult response = handler.onMessage(session, mockedMail);
 
-        assertEquals("Email was rejected", response.getResult(), HookReturnCode.DENY);
+        assertEquals("Email was rejected", response.getResult(), HookReturnCode.deny());
     }
 
     @Test
@@ -206,7 +206,7 @@ public class URIRBLHandlerTest {
         handler.setUriRblServer(servers);
         HookResult response = handler.onMessage(session, mockedMail);
 
-        assertEquals("Email was rejected", response.getResult(), HookReturnCode.DENY);
+        assertEquals("Email was rejected", response.getResult(), HookReturnCode.deny());
     }
 
     /*

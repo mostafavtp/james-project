@@ -53,8 +53,16 @@ public class MailSizeEsmtpExtension implements MailParametersHook, EhloExtension
     private static final String MESG_FAILED = "MESG_FAILED";   // Message failed flag
     private static final String[] MAIL_PARAMS = { "SIZE" };
     
-    private static final HookResult SYNTAX_ERROR = new HookResult(HookReturnCode.DENY, SMTPRetCode.SYNTAX_ERROR_ARGUMENTS, DSNStatus.getStatus(DSNStatus.PERMANENT, DSNStatus.DELIVERY_INVALID_ARG) + " Syntactically incorrect value for SIZE parameter");
-    private static final HookResult QUOTA_EXCEEDED = new HookResult(HookReturnCode.DENY, SMTPRetCode.QUOTA_EXCEEDED, DSNStatus.getStatus(DSNStatus.PERMANENT, DSNStatus.SYSTEM_MSG_TOO_BIG) + " Message size exceeds fixed maximum message size");
+    private static final HookResult SYNTAX_ERROR = HookResult.builder()
+        .hookReturnCode(HookReturnCode.deny())
+        .smtpReturnCode(SMTPRetCode.SYNTAX_ERROR_ARGUMENTS)
+        .smtpDescription(DSNStatus.getStatus(DSNStatus.PERMANENT, DSNStatus.DELIVERY_INVALID_ARG) + " Syntactically incorrect value for SIZE parameter")
+        .build();
+    private static final HookResult QUOTA_EXCEEDED = HookResult.builder()
+        .hookReturnCode(HookReturnCode.deny())
+        .smtpReturnCode(SMTPRetCode.QUOTA_EXCEEDED)
+        .smtpDescription(DSNStatus.getStatus(DSNStatus.PERMANENT, DSNStatus.SYSTEM_MSG_TOO_BIG) + " Message size exceeds fixed maximum message size")
+        .build();
     public static final int SINGLE_CHARACTER_LINE = 3;
     public static final int DOT_BYTE = 46;
 
@@ -68,25 +76,19 @@ public class MailSizeEsmtpExtension implements MailParametersHook, EhloExtension
 
     }
 
-    /**
-     * @see org.apache.james.protocols.smtp.hook.MailParametersHook#doMailParameter(org.apache.james.protocols.smtp.SMTPSession, java.lang.String, java.lang.String)
-     */
+    @Override
     public HookResult doMailParameter(SMTPSession session, String paramName,
-            String paramValue) {
+                                      String paramValue) {
         return doMailSize(session, paramValue,
                 (String) session.getAttachment(SMTPSession.SENDER, State.Transaction));
     }
 
-    /**
-     * @see org.apache.james.protocols.smtp.hook.MailParametersHook#getMailParamNames()
-     */
+    @Override
     public String[] getMailParamNames() {
         return MAIL_PARAMS;
     }
 
-    /**
-     * @see org.apache.james.protocols.smtp.core.esmtp.EhloExtension#getImplementedEsmtpFeatures(org.apache.james.protocols.smtp.SMTPSession)
-     */
+    @Override
     @SuppressWarnings("unchecked")
     public List<String> getImplementedEsmtpFeatures(SMTPSession session) {
         // Extension defined in RFC 1870
@@ -138,9 +140,7 @@ public class MailSizeEsmtpExtension implements MailParametersHook, EhloExtension
     }
 
 
-    /**
-     * @see org.apache.james.protocols.smtp.core.DataLineFilter#onLine(SMTPSession, byte[], LineHandler)
-     */
+    @Override
     public Response onLine(SMTPSession session, ByteBuffer line, LineHandler<SMTPSession> next) {
         Boolean failed = (Boolean) session.getAttachment(MESG_FAILED, State.Transaction);
         // If we already defined we failed and sent a reply we should simply
@@ -189,16 +189,14 @@ public class MailSizeEsmtpExtension implements MailParametersHook, EhloExtension
         return line.remaining() == SINGLE_CHARACTER_LINE && line.get() == DOT_BYTE;
     }
 
-    /**
-     * @see org.apache.james.protocols.smtp.hook.MessageHook#onMessage(SMTPSession, MailEnvelope)
-     */
+    @Override
     public HookResult onMessage(SMTPSession session, MailEnvelope mail) {
         Boolean failed = (Boolean) session.getAttachment(MESG_FAILED, State.Transaction);
         if (failed != null && failed.booleanValue()) {
             LOGGER.error("Rejected message from {} from {} exceeding system maximum message size of {}", session.getAttachment(SMTPSession.SENDER, State.Transaction), session.getRemoteAddress().getAddress().getHostAddress(), session.getConfiguration().getMaxMessageSize());
             return QUOTA_EXCEEDED;
         } else {
-            return HookResult.declined();
+            return HookResult.DECLINED;
         }
     }
 

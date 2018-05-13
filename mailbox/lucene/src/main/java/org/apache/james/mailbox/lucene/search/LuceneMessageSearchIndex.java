@@ -732,12 +732,8 @@ public class LuceneMessageSearchIndex extends ListeningMessageSearchIndex {
             }
  
         };
-        MimeConfig config = MimeConfig.custom()
-                .setMaxLineLen(-1)
-                .setMaxContentLen(-1)
-                .build();
         //config.setStrictParsing(false);
-        MimeStreamParser parser = new MimeStreamParser(config);
+        MimeStreamParser parser = new MimeStreamParser(MimeConfig.PERMISSIVE);
         parser.setContentDecoding(true);
         parser.setContentHandler(handler);
        
@@ -1244,16 +1240,13 @@ public class LuceneMessageSearchIndex extends ListeningMessageSearchIndex {
             return createConjunctionQuery(crit, inMailboxes, recentUids);
         } else if (criterion instanceof SearchQuery.ModSeqCriterion) {
             return createModSeqQuery((SearchQuery.ModSeqCriterion) criterion);
+        } else if (criterion instanceof SearchQuery.MimeMessageIDCriterion) {
+            SearchQuery.MimeMessageIDCriterion mimeMessageIDCriterion = (SearchQuery.MimeMessageIDCriterion) criterion;
+            return createHeaderQuery(mimeMessageIDCriterion.asHeaderCriterion());
         }
         throw new UnsupportedSearchException();
-
     }
 
-    
-
-    /**
-     * @see org.apache.james.mailbox.store.search.ListeningMessageSearchIndex#add(org.apache.james.mailbox.MailboxSession, org.apache.james.mailbox.store.mail.model.Mailbox, MailboxMessage)
-     */
     @Override
     public void add(MailboxSession session, Mailbox mailbox, MailboxMessage membership) throws MailboxException {
         Document doc = createMessageDocument(session, membership);
@@ -1267,9 +1260,6 @@ public class LuceneMessageSearchIndex extends ListeningMessageSearchIndex {
         }
     }
 
-    /**
-     * @see ListeningMessageSearchIndex#update
-     */
     @Override
     public void update(MailboxSession session, Mailbox mailbox, List<UpdatedFlags> updatedFlagsList) throws MailboxException {
         for (UpdatedFlags updatedFlags : updatedFlagsList) {

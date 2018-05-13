@@ -44,8 +44,12 @@ public class Port {
     private final int value;
 
     public Port(int value) {
-        assertValid(value);
+        validate(value);
         this.value = value;
+    }
+
+    protected void validate(int port) {
+        assertValid(port);
     }
 
     public int getValue() {

@@ -45,9 +45,9 @@ import org.apache.james.mailbox.MailboxManager.SearchCapabilities;
 import org.apache.james.mailetcontainer.impl.MatcherMailetPair;
 import org.apache.james.modules.server.CamelMailetContainerModule;
 import org.apache.james.queue.api.MailQueueItemDecoratorFactory;
+import org.apache.james.server.core.configuration.FileConfigurationProvider;
 import org.apache.james.transport.matchers.RecipientIsLocal;
 import org.apache.james.utils.ConfigurationPerformer;
-import org.apache.james.utils.FileConfigurationProvider;
 import org.apache.james.utils.PropertiesProvider;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -159,6 +159,8 @@ public class JMAPModule extends AbstractModule {
                     "Multimailbox search in MailboxManager is required by JMAP Module");
             Preconditions.checkArgument(searchCapabilities.contains(MailboxManager.SearchCapabilities.Attachment),
                     "Attachment Search support in MailboxManager is required by JMAP Module");
+            Preconditions.checkArgument(searchCapabilities.contains(SearchCapabilities.AttachmentFileName),
+                    "Attachment file name Search support in MailboxManager is required by JMAP Module");
         }
 
         @Override

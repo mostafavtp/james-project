@@ -23,12 +23,10 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
-import java.util.Date;
 import java.util.List;
 
 import javax.inject.Inject;
 import javax.inject.Named;
-import javax.mail.Flags;
 import javax.management.NotCompliantMBeanException;
 import javax.management.StandardMBean;
 
@@ -55,7 +53,6 @@ public class MailboxManagerManagement extends StandardMBean implements MailboxMa
     private static final Logger LOGGER = LoggerFactory.getLogger(MailboxManagerManagement.class);
 
     private MailboxManager mailboxManager;
-    private static final boolean RECENT = true;
 
     @Inject
     public void setMailboxManager(@Named("mailboxmanager") MailboxManager mailboxManager) {
@@ -66,9 +63,6 @@ public class MailboxManagerManagement extends StandardMBean implements MailboxMa
         super(MailboxManagerManagementMBean.class);
     }
 
-    /**
-     * @see org.apache.james.adapter.mailbox.MailboxManagerManagementMBean#deleteMailboxes(java.lang.String)
-     */
     @Override
     public boolean deleteMailboxes(String username) {
         checkString(username, "Username");
@@ -96,11 +90,6 @@ public class MailboxManagerManagement extends StandardMBean implements MailboxMa
         return false;
     }
 
-    /**
-     * @see
-     * org.apache.james.adapter.mailbox.MailboxManagerManagementMBean#listMailboxes
-     * (java.lang.String)
-     */
     @Override
     public List<String> listMailboxes(String username) {
         checkString(username, "Username");
@@ -191,8 +180,9 @@ public class MailboxManagerManagement extends StandardMBean implements MailboxMa
             mailboxManager.startProcessingRequest(session);
             MessageManager messageManager = mailboxManager.getMailbox(mailboxPath, session);
             InputStream emlFileAsStream = new FileInputStream(emlPath);
-            messageManager.appendMessage(emlFileAsStream, new Date(),
-                    session, RECENT, new Flags());
+            messageManager.appendMessage(MessageManager.AppendCommand.builder()
+                .recent()
+                .build(emlFileAsStream), session);
         } catch (Exception e) {
             LOGGER.error("Unable to create mailbox", e);
         } finally {

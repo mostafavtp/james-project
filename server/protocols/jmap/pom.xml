@@ -82,6 +82,10 @@
         </dependency>
         <dependency>
             <groupId>${project.groupId}</groupId>
+            <artifactId>james-mdn</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>${project.groupId}</groupId>
             <artifactId>james-server-core</artifactId>
         </dependency>
         <dependency>
@@ -140,6 +144,12 @@
         <dependency>
             <groupId>${project.groupId}</groupId>
             <artifactId>james-server-util-java8</artifactId>
+            <type>test-jar</type>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>${project.groupId}</groupId>
+            <artifactId>javax-mail-extension</artifactId>
             <type>test-jar</type>
             <scope>test</scope>
         </dependency>

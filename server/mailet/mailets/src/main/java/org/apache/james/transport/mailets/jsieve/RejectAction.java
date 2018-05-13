@@ -34,6 +34,7 @@ import org.apache.james.mdn.MDN;
 import org.apache.james.mdn.MDNReport;
 import org.apache.james.mdn.action.mode.DispositionActionMode;
 import org.apache.james.mdn.fields.Disposition;
+import org.apache.james.mdn.fields.ReportingUserAgent;
 import org.apache.james.mdn.modifier.DispositionModifier;
 import org.apache.james.mdn.sending.mode.DispositionSendingMode;
 import org.apache.james.mdn.type.DispositionType;
@@ -51,6 +52,7 @@ import org.slf4j.LoggerFactory;
 public class RejectAction implements MailAction {
     private static final Logger LOGGER = LoggerFactory.getLogger(RejectAction.class);
 
+    @Override
     public void execute(Action action, Mail mail, ActionContext context)
             throws MessagingException {
         if (action instanceof ActionReject) {
@@ -111,7 +113,7 @@ public class RejectAction implements MailAction {
             .humanReadableText(humanText.toString())
             .report(
                 MDNReport.builder()
-                    .reportingUserAgentField(reportingUAName, reportingUAProduct)
+                    .reportingUserAgentField(ReportingUserAgent.builder().userAgentName(reportingUAName).userAgentProduct(reportingUAProduct).build())
                     .finalRecipientField(finalRecipient)
                     .originalRecipientField(originalRecipient)
                     .originalMessageIdField(originalMessageId)

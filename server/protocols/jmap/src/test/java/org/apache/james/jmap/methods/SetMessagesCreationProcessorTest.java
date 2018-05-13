@@ -28,13 +28,9 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import java.io.InputStream;
-import java.sql.Date;
 import java.util.Optional;
 import java.util.function.Supplier;
 import java.util.stream.Stream;
-
-import javax.mail.Flags;
 
 import org.apache.james.jmap.exceptions.MailboxNotOwnedException;
 import org.apache.james.jmap.model.CreationMessage;
@@ -44,7 +40,6 @@ import org.apache.james.jmap.model.MessageFactory;
 import org.apache.james.jmap.model.MessagePreviewGenerator;
 import org.apache.james.jmap.model.SetMessagesRequest;
 import org.apache.james.jmap.model.SetMessagesResponse;
-import org.apache.james.jmap.model.mailbox.Role;
 import org.apache.james.jmap.send.MailFactory;
 import org.apache.james.jmap.send.MailMetadata;
 import org.apache.james.jmap.send.MailSpool;
@@ -57,6 +52,7 @@ import org.apache.james.mailbox.MailboxSession;
 import org.apache.james.mailbox.MessageIdManager;
 import org.apache.james.mailbox.MessageManager;
 import org.apache.james.mailbox.MessageUid;
+import org.apache.james.mailbox.Role;
 import org.apache.james.mailbox.exception.MailboxException;
 import org.apache.james.mailbox.exception.MailboxNotFoundException;
 import org.apache.james.mailbox.inmemory.InMemoryId;
@@ -121,6 +117,7 @@ public class SetMessagesCreationProcessorTest {
     public ExpectedException expectedException = ExpectedException.none();
     private MessageAppender messageAppender;
     private MessageSender messageSender;
+    private ReferenceUpdater referenceUpdater;
 
     @Before
     public void setUp() throws MailboxException {
@@ -143,6 +140,7 @@ public class SetMessagesCreationProcessorTest {
         MIMEMessageConverter mimeMessageConverter = new MIMEMessageConverter();
         messageAppender = new MessageAppender(mockedMailboxManager, mockMessageIdManager, mockedAttachmentManager, mimeMessageConverter);
         messageSender = new MessageSender(mockedMailSpool, mockedMailFactory);
+        referenceUpdater = new ReferenceUpdater(mockMessageIdManager, mockedMailboxManager);
         sut = new SetMessagesCreationProcessor(messageFactory,
             fakeSystemMailboxesProvider,
             new AttachmentChecker(mockedAttachmentManager),
@@ -150,7 +148,8 @@ public class SetMessagesCreationProcessorTest {
             mockedMailboxManager,
             mockedMailboxIdFactory,
             messageAppender,
-            messageSender);
+            messageSender,
+            referenceUpdater);
         
         outbox = mock(MessageManager.class);
         when(mockedMailboxIdFactory.fromString(OUTBOX_ID.serialize()))
@@ -161,7 +160,7 @@ public class SetMessagesCreationProcessorTest {
         when(outbox.getId()).thenReturn(OUTBOX_ID);
         when(outbox.getMailboxPath()).thenReturn(MailboxPath.forUser(USER, OUTBOX));
         
-        when(outbox.appendMessage(any(InputStream.class), any(Date.class), any(MailboxSession.class), any(Boolean.class), any(Flags.class)))
+        when(outbox.appendMessage(any(MessageManager.AppendCommand.class), any(MailboxSession.class)))
             .thenReturn(new ComposedMessageId(OUTBOX_ID, TestMessageId.of(23), MessageUid.of(1)));
 
         drafts = mock(MessageManager.class);
@@ -234,7 +233,7 @@ public class SetMessagesCreationProcessorTest {
     @Test
     public void processShouldReturnNonEmptyCreatedWhenRequestHasNonEmptyCreate() throws MailboxException {
         // Given
-        sut = new SetMessagesCreationProcessor(messageFactory, fakeSystemMailboxesProvider, new AttachmentChecker(mockedAttachmentManager), new NoopMetricFactory(), mockedMailboxManager, mockedMailboxIdFactory, messageAppender, messageSender);
+        sut = new SetMessagesCreationProcessor(messageFactory, fakeSystemMailboxesProvider, new AttachmentChecker(mockedAttachmentManager), new NoopMetricFactory(), mockedMailboxManager, mockedMailboxIdFactory, messageAppender, messageSender, referenceUpdater);
 
         // When
         SetMessagesResponse result = sut.process(createMessageInOutbox, session);
@@ -252,7 +251,8 @@ public class SetMessagesCreationProcessorTest {
         SetMessagesCreationProcessor sut = new SetMessagesCreationProcessor(messageFactory, doNotProvideOutbox,
             new AttachmentChecker(mockedAttachmentManager), new NoopMetricFactory(), mockedMailboxManager, mockedMailboxIdFactory,
             messageAppender,
-            messageSender);
+            messageSender,
+            referenceUpdater);
         // When
         SetMessagesResponse actual = sut.process(createMessageInOutbox, session);
         
@@ -267,7 +267,7 @@ public class SetMessagesCreationProcessorTest {
         sut.process(createMessageInOutbox, session);
 
         // Then
-        verify(outbox).appendMessage(any(InputStream.class), any(Date.class), any(MailboxSession.class), any(Boolean.class), any(Flags.class));
+        verify(outbox).appendMessage(any(MessageManager.AppendCommand.class), any(MailboxSession.class));
     }
 
     @Test

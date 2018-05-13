@@ -75,7 +75,8 @@ public interface MailboxManager extends RequestAware, MailboxListenerSupport, Ri
         Move,
         Namespace,
         UserFlag,
-        ACL
+        ACL,
+        Quota
     }
 
     EnumSet<MailboxCapabilities> getSupportedMailboxCapabilities();
@@ -91,6 +92,7 @@ public interface MailboxManager extends RequestAware, MailboxListenerSupport, Ri
 
     enum SearchCapabilities {
         MultimailboxSearch,
+        PartialEmailMatch,
         /**
          *  The implementation supporting this capability should
          *  provide an index on the fields: 
@@ -98,7 +100,8 @@ public interface MailboxManager extends RequestAware, MailboxListenerSupport, Ri
          */
         Text,
         FullText,
-        Attachment
+        Attachment,
+        AttachmentFileName
     }
     
     EnumSet<SearchCapabilities> getSupportedSearchCapabilities();

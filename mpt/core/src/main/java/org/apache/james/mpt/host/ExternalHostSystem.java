@@ -22,6 +22,8 @@ package org.apache.james.mpt.host;
 import org.apache.commons.lang.NotImplementedException;
 import org.apache.james.mailbox.model.MailboxACL;
 import org.apache.james.mailbox.model.MailboxPath;
+import org.apache.james.mailbox.quota.QuotaCount;
+import org.apache.james.mailbox.quota.QuotaSize;
 import org.apache.james.mpt.api.ImapFeatures;
 import org.apache.james.mpt.api.ImapFeatures.Feature;
 import org.apache.james.mpt.api.ImapHostSystem;
@@ -78,6 +80,7 @@ public class ExternalHostSystem extends ExternalSessionFactory implements ImapHo
         this.userAdder = userAdder;
     }
     
+    @Override
     public boolean addUser(String user, String password) throws Exception {
         if (userAdder == null) {
             monitor.note("Please ensure user '" + user + "' with password '" + password + "' exists.");
@@ -88,6 +91,7 @@ public class ExternalHostSystem extends ExternalSessionFactory implements ImapHo
         return true;
     }
 
+    @Override
     public void createMailbox(MailboxPath mailboxPath) throws Exception {
         throw new NotImplementedException();
     }
@@ -98,9 +102,11 @@ public class ExternalHostSystem extends ExternalSessionFactory implements ImapHo
     public void afterTests() throws Exception {
     }
 
+    @Override
     public void beforeTest() throws Exception {
     }
     
+    @Override
     public void afterTest() throws Exception {
     }
 
@@ -110,7 +116,7 @@ public class ExternalHostSystem extends ExternalSessionFactory implements ImapHo
     }
 
     @Override
-    public void setQuotaLimits(long maxMessageQuota, long maxStorageQuota) throws Exception {
+    public void setQuotaLimits(QuotaCount maxMessageQuota, QuotaSize maxStorageQuota) throws Exception {
         throw new NotImplementedException();
     }
 

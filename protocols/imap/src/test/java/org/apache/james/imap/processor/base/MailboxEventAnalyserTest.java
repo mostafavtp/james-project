@@ -58,19 +58,23 @@ public class MailboxEventAnalyserTest {
             done = false;
         }
 
+        @Override
         public void remove() {
             throw new NotImplementedException("Not implemented");
         }
 
+        @Override
         public MessageResult next() {
             done = true;
             return messageResult;
         }
 
+        @Override
         public boolean hasNext() {
             return !done;
         }
 
+        @Override
         public MailboxException getException() {
             throw new NotImplementedException("Not implemented");
         }
@@ -116,7 +120,7 @@ public class MailboxEventAnalyserTest {
 
     @Test
     public void testShouldBeNoSizeChangeOnOtherEvent() throws Exception {
-        MailboxListener.Event event = new MailboxListener.Event(MAILBOX_SESSION, MAILBOX_PATH) {};
+        MailboxListener.MailboxEvent event = new MailboxListener.MailboxEvent(MAILBOX_SESSION, MAILBOX_PATH) {};
       
         testee.event(event);
 

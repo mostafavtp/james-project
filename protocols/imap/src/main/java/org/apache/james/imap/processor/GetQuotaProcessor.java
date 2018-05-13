@@ -38,8 +38,10 @@ import org.apache.james.mailbox.model.MailboxACL;
 import org.apache.james.mailbox.model.MailboxPath;
 import org.apache.james.mailbox.model.Quota;
 import org.apache.james.mailbox.model.QuotaRoot;
+import org.apache.james.mailbox.quota.QuotaCount;
 import org.apache.james.mailbox.quota.QuotaManager;
 import org.apache.james.mailbox.quota.QuotaRootResolver;
+import org.apache.james.mailbox.quota.QuotaSize;
 import org.apache.james.metrics.api.MetricFactory;
 import org.apache.james.util.MDCBuilder;
 
@@ -62,12 +64,7 @@ public class GetQuotaProcessor extends AbstractMailboxProcessor<GetQuotaRequest>
         this.quotaRootResolver = quotaRootResolver;
     }
 
-    /*
-     * (non-Javadoc)
-     *
-     * @see org.apache.james.imap.processor.CapabilityImplementingProcessor#
-     * getImplementedCapabilities(org.apache.james.imap.api.process.ImapSession)
-     */
+    @Override
     public List<String> getImplementedCapabilities(ImapSession session) {
         return CAPABILITIES;
     }
@@ -75,12 +72,16 @@ public class GetQuotaProcessor extends AbstractMailboxProcessor<GetQuotaRequest>
     @Override
     protected void doProcess(GetQuotaRequest message, ImapSession session, String tag, ImapCommand command, Responder responder) {
         try {
-            if (hasRight(message.getQuotaRoot(), session)) {
-                QuotaRoot quotaRoot = quotaRootResolver.createQuotaRoot(message.getQuotaRoot());
-                Quota messageQuota = quotaManager.getMessageQuota(quotaRoot);
-                Quota storageQuota = quotaManager.getStorageQuota(quotaRoot);
-                responder.respond(new QuotaResponse(ImapConstants.MESSAGE_QUOTA_RESOURCE, quotaRoot.getValue(), messageQuota));
-                responder.respond(new QuotaResponse(ImapConstants.STORAGE_QUOTA_RESOURCE, quotaRoot.getValue(), storageQuota));
+            QuotaRoot quotaRoot = quotaRootResolver.fromString(message.getQuotaRoot());
+            if (hasRight(quotaRoot, session)) {
+                Quota<QuotaCount> messageQuota = quotaManager.getMessageQuota(quotaRoot);
+                Quota<QuotaSize> storageQuota = quotaManager.getStorageQuota(quotaRoot);
+                if (messageQuota.getLimit().isLimited()) {
+                    responder.respond(new QuotaResponse(ImapConstants.MESSAGE_QUOTA_RESOURCE, quotaRoot.getValue(), messageQuota));
+                }
+                if (storageQuota.getLimit().isLimited()) {
+                    responder.respond(new QuotaResponse(ImapConstants.STORAGE_QUOTA_RESOURCE, quotaRoot.getValue(), storageQuota));
+                }
                 okComplete(command, tag, responder);
             } else {
                 Object[] params = new Object[]{
@@ -96,10 +97,10 @@ public class GetQuotaProcessor extends AbstractMailboxProcessor<GetQuotaRequest>
         }
     }
 
-    private boolean hasRight(String quotaRoot, ImapSession session) throws MailboxException {
+    private boolean hasRight(QuotaRoot quotaRoot, ImapSession session) throws MailboxException {
         // If any of the mailboxes owned by quotaRoot user can be read by the current user, then we should respond to him.
         final MailboxSession mailboxSession = ImapSessionUtils.getMailboxSession(session);
-        List<MailboxPath> mailboxList = quotaRootResolver.retrieveAssociatedMailboxes(quotaRootResolver.createQuotaRoot(quotaRoot), mailboxSession);
+        List<MailboxPath> mailboxList = quotaRootResolver.retrieveAssociatedMailboxes(quotaRoot, mailboxSession);
         for (MailboxPath mailboxPath : mailboxList) {
             if (getMailboxManager().hasRight(mailboxPath, MailboxACL.Right.Read, mailboxSession)) {
                 return true;

@@ -28,6 +28,12 @@ layout: default
   <div class="apache_ref_mobile">
     <a href="https://www.apache.org" alt="apache foundation link">The Apache Software Foundation</a>
   </div>
+  <div class="apache_ref_left">
+    <a href="https://www.apache.org/events/current-event.html" alt="apache foundation event"><img src="https://www.apache.org/events/current-event-234x60.png" title="apache foundation event logo"/></a>
+  </div>
+  <div class="apache_ref_left_mobile">
+    <a href="https://www.apache.org/events/current-event.html" alt="apache foundation event"><img src="https://www.apache.org/events/current-event-234x60.png" title="apache foundation event logo"/></a>
+  </div>
 
   <!-- Header -->
     <header id="header" class="alt">
@@ -101,7 +107,7 @@ WHAT WILL YOU TRY:</b><br>
               </li>
               <li class="post-template"><span class="long-arrow-right">&#8594;</span><span><b>STEPS YOU HAVE TO FOLLOW:</b><br>
                 Pull and run the James image with the following single command:<br><br>
-                <code class="highlighter-rouge">docker run -p "25:25" -p "143:143" linagora/james-jpa-sample</code>
+                <code class="highlighter-rouge">docker run -p "25:25" -p "143:143" linagora/james-jpa-sample:3.0.1</code>
 
                 <br><br>
                 Then, connect this image with for instance, Thunderbird.<br>
@@ -310,7 +316,7 @@ WHAT WILL YOU TRY:</b><br>
                   <li class="james-use-case-li center-icon"><span class="icon fa-arrow-right"></span>To allow email interactions with the platform</li>
                   <li class="james-use-case-li center-icon"><span class="icon fa-arrow-right"></span>To use the&nbsp;<a href="https://jmap.io/" class="comm">JMAP</a>&nbsp;protocol (the browser interacts directly with the mail server)</li>
                 </ul>
-                <p>Our deployment currently allows serving a hundred user over JMAP, SMTP and IMAP.</p>
+                <p>Our deployment currently allows serving a hundred users over JMAP, SMTP and IMAP.</p>
               </div>
           </div>
         </section>

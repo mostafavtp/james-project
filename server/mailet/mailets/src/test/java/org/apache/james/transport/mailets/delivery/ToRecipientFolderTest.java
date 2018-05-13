@@ -28,10 +28,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.io.IOException;
-import java.io.InputStream;
-import java.util.Date;
 
-import javax.mail.Flags;
 import javax.mail.MessagingException;
 import javax.mail.internet.MimeBodyPart;
 
@@ -57,6 +54,7 @@ import org.slf4j.Logger;
 
 import com.google.common.base.Throwables;
 
+@Deprecated
 public class ToRecipientFolderTest {
 
     public static final String USER_LOCAL_PART = "receiver";
@@ -148,7 +146,7 @@ public class ToRecipientFolderTest {
             .build());
         testee.service(createMail());
 
-        verify(messageManager).appendMessage(any(InputStream.class), any(Date.class), any(MailboxSession.class), eq(true), any(Flags.class));
+        verify(messageManager).appendMessage(any(MessageManager.AppendCommand.class), any(MailboxSession.class));
     }
 
     @Test
@@ -164,7 +162,7 @@ public class ToRecipientFolderTest {
             .build());
         testee.service(createMail());
 
-        verify(messageManager).appendMessage(any(InputStream.class), any(Date.class), any(MailboxSession.class), eq(true), any(Flags.class));
+        verify(messageManager).appendMessage(any(MessageManager.AppendCommand.class), any(MailboxSession.class));
     }
 
     @Test
@@ -183,7 +181,7 @@ public class ToRecipientFolderTest {
             .build());
         testee.service(createMail());
 
-        verify(messageManager).appendMessage(any(InputStream.class), any(Date.class), any(MailboxSession.class), eq(true), any(Flags.class));
+        verify(messageManager).appendMessage(any(MessageManager.AppendCommand.class), any(MailboxSession.class));
     }
 
     private Mail createMail() throws MessagingException, IOException {

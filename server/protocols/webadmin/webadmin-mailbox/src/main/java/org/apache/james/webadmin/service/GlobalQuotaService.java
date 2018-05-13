@@ -18,14 +18,15 @@
  ****************************************************************/
 package org.apache.james.webadmin.service;
 
+import java.util.Optional;
+
 import javax.inject.Inject;
 
 import org.apache.james.mailbox.exception.MailboxException;
-import org.apache.james.mailbox.model.Quota;
 import org.apache.james.mailbox.quota.MaxQuotaManager;
+import org.apache.james.mailbox.quota.QuotaCount;
+import org.apache.james.mailbox.quota.QuotaSize;
 import org.apache.james.webadmin.dto.QuotaDTO;
-import org.apache.james.webadmin.validation.QuotaValue.QuotaCount;
-import org.apache.james.webadmin.validation.QuotaValue.QuotaSize;
 
 public class GlobalQuotaService {
 
@@ -37,39 +38,50 @@ public class GlobalQuotaService {
     }
 
     public void defineQuota(QuotaDTO quota) throws MailboxException {
-        maxQuotaManager.setDefaultMaxMessage(quota.getCount());
-        maxQuotaManager.setDefaultMaxStorage(quota.getSize());
+        Optional<QuotaCount> count = quota.getCount();
+        if (count.isPresent()) {
+            maxQuotaManager.setGlobalMaxMessage(count.get());
+        } else {
+            maxQuotaManager.removeGlobalMaxMessage();
+        }
+
+        Optional<QuotaSize> size = quota.getSize();
+        if (size.isPresent()) {
+            maxQuotaManager.setGlobalMaxStorage(size.get());
+        } else {
+            maxQuotaManager.removeGlobalMaxStorage();
+        }
     }
 
     public QuotaDTO getQuota() throws MailboxException {
         return QuotaDTO
             .builder()
-            .count(maxQuotaManager.getDefaultMaxMessage())
-            .size(maxQuotaManager.getDefaultMaxStorage())
+            .count(maxQuotaManager.getGlobalMaxMessage())
+            .size(maxQuotaManager.getGlobalMaxStorage())
             .build();
     }
 
-    public Long getMaxSizeQuota() throws MailboxException {
-        return maxQuotaManager.getDefaultMaxStorage();
+    public Optional<QuotaSize> getMaxSizeQuota() throws MailboxException {
+        return maxQuotaManager.getGlobalMaxStorage();
     }
 
     public void defineMaxSizeQuota(QuotaSize quotaRequest) throws MailboxException {
-        maxQuotaManager.setDefaultMaxStorage(quotaRequest.asLong());
+        maxQuotaManager.setGlobalMaxStorage(quotaRequest);
     }
 
     public void deleteMaxSizeQuota() throws MailboxException {
-        maxQuotaManager.setDefaultMaxStorage(Quota.UNLIMITED);
+        maxQuotaManager.removeGlobalMaxStorage();
     }
 
-    public Long getMaxCountQuota() throws MailboxException {
-        return maxQuotaManager.getDefaultMaxMessage();
+    public Optional<QuotaCount> getMaxCountQuota() throws MailboxException {
+        return maxQuotaManager.getGlobalMaxMessage();
     }
 
     public void defineMaxCountQuota(QuotaCount value) throws MailboxException {
-        maxQuotaManager.setDefaultMaxMessage(value.asLong());
+        maxQuotaManager.setGlobalMaxMessage(value);
     }
 
     public void deleteMaxCountQuota() throws MailboxException {
-        maxQuotaManager.setDefaultMaxMessage(Quota.UNLIMITED);
+        maxQuotaManager.removeGlobalMaxMessage();
     }
 }

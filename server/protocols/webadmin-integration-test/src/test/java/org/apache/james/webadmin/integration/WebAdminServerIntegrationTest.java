@@ -281,8 +281,8 @@ public class WebAdminServerIntegrationTest {
 
     @Test
     public void addressGroupsEndpointShouldHandleRequests() throws Exception {
-        dataProbe.addAddressMapping("group", "domain.com", "user1@domain.com");
-        dataProbe.addAddressMapping("group", "domain.com", "user2@domain.com");
+        dataProbe.addGroupMapping("group", "domain.com", "user1@domain.com");
+        dataProbe.addGroupMapping("group", "domain.com", "user2@domain.com");
 
         List<String> members = when()
             .get("/address/groups/group@domain.com")
@@ -293,6 +293,22 @@ public class WebAdminServerIntegrationTest {
             .jsonPath()
             .getList(".");
         assertThat(members).containsOnly("user1@domain.com", "user2@domain.com");
+    }
+
+    @Test
+    public void addressForwardsEndpointShouldListForwardAddresses() throws Exception {
+        dataProbe.addForwardMapping("from1", "domain.com", "user1@domain.com");
+        dataProbe.addForwardMapping("from2", "domain.com", "user2@domain.com");
+
+        List<String> members = when()
+            .get("/address/forwards")
+        .then()
+            .statusCode(HttpStatus.OK_200)
+            .contentType(JSON_CONTENT_TYPE)
+            .extract()
+            .jsonPath()
+            .getList(".");
+        assertThat(members).containsOnly("from1@domain.com", "from2@domain.com");
     }
 
     @Test

@@ -26,6 +26,7 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 
 import org.apache.james.metrics.api.MetricFactory;
+import org.apache.james.util.Port;
 import org.apache.james.webadmin.authentication.NoAuthenticationFilter;
 
 import com.google.common.collect.ImmutableSet;
@@ -34,15 +35,8 @@ import com.jayway.restassured.http.ContentType;
 
 public class WebAdminUtils {
 
-    public static WebAdminConfiguration webAdminConfigurationForTesting() {
-        return WebAdminConfiguration.builder()
-            .enabled()
-            .port(new RandomPortSupplier())
-            .build();
-    }
-
     public static WebAdminServer createWebAdminServer(MetricFactory metricFactory, Routes... routes) throws IOException {
-        return new WebAdminServer(webAdminConfigurationForTesting(),
+        return new WebAdminServer(WebAdminConfiguration.TEST_CONFIGURATION,
             ImmutableSet.copyOf(routes),
             new NoAuthenticationFilter(),
             metricFactory);
@@ -52,12 +46,12 @@ public class WebAdminUtils {
         return buildRequestSpecification(webAdminServer.getPort());
     }
 
-    public static RequestSpecBuilder buildRequestSpecification(PortSupplier portSupplier) {
+    public static RequestSpecBuilder buildRequestSpecification(Port port) {
         return new RequestSpecBuilder()
             .setContentType(ContentType.JSON)
             .setAccept(ContentType.JSON)
             .setConfig(newConfig().encoderConfig(encoderConfig().defaultContentCharset(StandardCharsets.UTF_8)))
-            .setPort(portSupplier.get().getValue());
+            .setPort(port.getValue());
     }
 
 }

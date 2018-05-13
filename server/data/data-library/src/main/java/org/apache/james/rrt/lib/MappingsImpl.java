@@ -23,6 +23,7 @@ package org.apache.james.rrt.lib;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Comparator;
 import java.util.Iterator;
 import java.util.Optional;
 import java.util.StringTokenizer;
@@ -33,7 +34,6 @@ import org.apache.james.rrt.lib.Mapping.Type;
 
 import com.github.steveash.guavate.Guavate;
 import com.google.common.base.Joiner;
-import com.google.common.base.MoreObjects;
 import com.google.common.base.Objects;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
@@ -43,6 +43,41 @@ import com.google.common.collect.Lists;
 public class MappingsImpl implements Mappings, Serializable {
 
     private static final long serialVersionUID = 1L;
+
+    private static class DefaultMappingOrderingPolicy {
+
+        private static final Comparator<Mapping> MAPPING_COMPARATOR = Comparator
+            .<Mapping, Integer>comparing(DefaultMappingOrderingPolicy::typeOrder)
+            .thenComparing(Mapping::asString);
+
+        private static int typeOrder(Mapping mapping) {
+            return typeOrder(mapping.getType());
+        }
+
+        private static int typeOrder(Mapping.Type type) {
+            switch (type) {
+                case Domain:
+                    return 1;
+                case Group:
+                    return 2;
+                case Forward:
+                    return 3;
+                case Regex:
+                    return 4;
+                case Error:
+                    return 4;
+                case Address:
+                    return 4;
+            }
+            throw new IllegalArgumentException("missing enum handling");
+        }
+
+        public Comparator<Mapping> comparator() {
+            return MAPPING_COMPARATOR;
+        }
+    }
+
+
 
     public static MappingsImpl empty() {
         return builder().build();
@@ -63,14 +98,13 @@ public class MappingsImpl implements Mappings, Serializable {
     }
     
     public static MappingsImpl fromCollection(Collection<String> mappings) {
-        return mappings.stream()
-            .reduce(builder(), (builder, mapping) -> builder.add(mapping), (builder1, builder2) -> builder1.addAll(builder2.build()))
-            .build();
+        return fromMappings(mappings.stream()
+            .map(Mapping::of));
     }
     
     public static MappingsImpl fromMappings(Stream<Mapping> mappings) {
         return mappings
-            .reduce(builder(), (builder, mapping) -> builder.add(mapping), (builder1, builder2) -> builder1.addAll(builder2.build()))
+            .reduce(builder(), Builder::add, Builder::merge)
             .build();
     }
     
@@ -85,6 +119,10 @@ public class MappingsImpl implements Mappings, Serializable {
     }
     
     public static class Builder {
+
+        public static Builder merge(Builder builder1, Builder builder2) {
+            return builder1.addAll(builder2.build());
+        }
         
         private final ImmutableList.Builder<Mapping> mappings;
         
@@ -93,24 +131,31 @@ public class MappingsImpl implements Mappings, Serializable {
         }
 
         public Builder add(String mapping) {
-            return add(MappingImpl.of(mapping));
+            return add(Mapping.of(mapping));
         }
 
         public Builder add(Mapping mapping) {
             mappings.add(mapping);
             return this;
         }
-
         
         public Builder addAll(Mappings mappings) {
             this.mappings.addAll(mappings);
             return this;
         }
         
-        public MappingsImpl build() {
-            return new MappingsImpl(mappings.build());
+        public Builder addAll(Iterable<String> mappings) {
+            mappings.forEach(this::add);
+            return this;
         }
         
+        public MappingsImpl build() {
+            return new MappingsImpl(mappings.build()
+                .stream()
+                .sorted(new DefaultMappingOrderingPolicy().comparator())
+                .collect(Guavate.toImmutableList()));
+        }
+
     }
     
     private final ImmutableList<Mapping> mappings;
@@ -209,6 +254,11 @@ public class MappingsImpl implements Mappings, Serializable {
     }
 
     @Override
+    public Stream<Mapping> asStream() {
+        return mappings.stream();
+    }
+
+    @Override
     public int hashCode() {
         return Objects.hashCode(mappings);
     }
@@ -224,6 +274,8 @@ public class MappingsImpl implements Mappings, Serializable {
 
     @Override
     public String toString() {
-        return MoreObjects.toStringHelper(getClass()).add("mappings", mappings).toString();
+        return "MappingsImpl{" +
+            "mappings=" + mappings +
+            '}';
     }
 }

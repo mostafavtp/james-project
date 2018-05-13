@@ -48,9 +48,9 @@ public interface DataProbe {
 
     Mappings listUserDomainMappings(String user, String domain) throws Exception;
 
-    void addAddressMapping(String user, String domain, String toAddress) throws Exception;
+    void addAddressMapping(String fromUser, String fromDomain, String toAddress) throws Exception;
 
-    void removeAddressMapping(String user, String domain, String fromAddress) throws Exception;
+    void removeAddressMapping(String fromUser, String fromDomain, String toAddress) throws Exception;
 
     void addRegexMapping(String user, String domain, String regex) throws Exception;
 
@@ -58,4 +58,11 @@ public interface DataProbe {
 
     void addDomainAliasMapping(String aliasDomain, String deliveryDomain) throws Exception;
 
+    void addForwardMapping(String toUser, String toDomain, String fromAddress) throws Exception;
+
+    void removeForwardMapping(String toUser, String toDomain, String fromAddress) throws Exception;
+
+    void addGroupMapping(String toUser, String toDomain, String fromAddress) throws Exception;
+
+    void removeGroupMapping(String toUser, String toDomain, String fromAddress) throws Exception;
 }

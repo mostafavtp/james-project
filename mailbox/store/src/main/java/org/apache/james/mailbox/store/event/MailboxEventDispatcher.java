@@ -19,19 +19,26 @@
 
 package org.apache.james.mailbox.store.event;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.SortedMap;
 
 import javax.inject.Inject;
 
+import org.apache.james.mailbox.Event;
 import org.apache.james.mailbox.MailboxListener;
 import org.apache.james.mailbox.MailboxSession;
 import org.apache.james.mailbox.MessageUid;
 import org.apache.james.mailbox.acl.ACLDiff;
 import org.apache.james.mailbox.model.MailboxPath;
 import org.apache.james.mailbox.model.MessageMetaData;
+import org.apache.james.mailbox.model.MessageMoves;
+import org.apache.james.mailbox.model.Quota;
+import org.apache.james.mailbox.model.QuotaRoot;
 import org.apache.james.mailbox.model.UpdatedFlags;
+import org.apache.james.mailbox.quota.QuotaCount;
+import org.apache.james.mailbox.quota.QuotaSize;
 import org.apache.james.mailbox.store.SimpleMessageMetaData;
 import org.apache.james.mailbox.store.mail.model.Mailbox;
 import org.apache.james.mailbox.store.mail.model.MailboxMessage;
@@ -42,7 +49,7 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSortedMap;
 
 /**
- * Helper class to dispatch {@link org.apache.james.mailbox.MailboxListener.Event}'s to registerend MailboxListener
+ * Helper class to dispatch {@link org.apache.james.mailbox.Event}'s to registerend MailboxListener
  */
 public class MailboxEventDispatcher {
 
@@ -152,5 +159,20 @@ public class MailboxEventDispatcher {
 
     public void aclUpdated(MailboxSession session, MailboxPath mailboxPath, ACLDiff aclDiff) {
         listener.event(eventFactory.aclUpdated(session, mailboxPath, aclDiff));
+    }
+
+    public void moved(MailboxSession session, MessageMoves messageMoves, Map<MessageUid, MailboxMessage> messages) {
+        MessageMoveEvent moveEvent = eventFactory.moved(session, messageMoves, messages);
+        if (!moveEvent.isNoop()) {
+            listener.event(moveEvent);
+        }
+    }
+
+    public void quota(MailboxSession session, QuotaRoot quotaRoot, Quota<QuotaCount> countQuota, Quota<QuotaSize> sizeQuota) {
+        listener.event(new MailboxListener.QuotaUsageUpdatedEvent(session, quotaRoot, countQuota, sizeQuota, Instant.now()));
+    }
+
+    public void event(Event event) {
+        listener.event(event);
     }
 }
